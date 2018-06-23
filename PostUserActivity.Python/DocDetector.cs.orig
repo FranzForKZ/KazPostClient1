@@ -1,0 +1,885 @@
+<<<<<<< HEAD
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+//using System.Threading.Tasks;
+using Emgu.CV;
+using Emgu.Util;
+using Emgu.CV.UI;
+using Emgu.CV.Structure;
+using Emgu.CV.CvEnum;
+
+using Emgu.CV.Features2D;
+
+using Emgu.CV.Util;
+
+
+
+
+namespace ScanProcessor
+{
+
+
+    class DocDetector
+    {
+
+        public static Bitmap ScaleImage(Bitmap original, Size newSize)
+        {
+            Bitmap resized = new Bitmap(original, newSize);
+            return resized;
+        }
+
+        public static Bitmap ScaleImage(Bitmap original, int newWidth)
+        {
+            return DocDetector.ScaleImage(original, new Size(newWidth, Convert.ToInt32(original.Height * (newWidth * 1.0 / original.Width))));
+        }
+
+        public static Bitmap CropImage(Bitmap original, Rectangle rec)
+        {
+            Rectangle cropRect = rec;
+            Bitmap src = original;
+            Bitmap target = new Bitmap(cropRect.Width, cropRect.Height);
+
+            using (Graphics g = Graphics.FromImage(target))
+            {
+                g.DrawImage(src, new Rectangle(0, 0, target.Width, target.Height),
+                                 cropRect,
+                                 GraphicsUnit.Pixel);
+            }
+
+            return target;
+        }
+        public static Image<Gray, byte> MyCanny(Image<Gray, byte> Img_Org_Gray)
+        {
+            Image<Gray, byte> Img_Source_Gray = Img_Org_Gray.Copy();
+            Image<Gray, byte> Img_Egde_Gray = Img_Source_Gray.CopyBlank();
+            Image<Gray, byte> Img_SourceSmoothed_Gray = Img_Source_Gray.CopyBlank();
+            //Image<Gray, byte> Img_Otsu_Gray = Img_Org_Gray.CopyBlank();
+
+            Img_SourceSmoothed_Gray = Img_Source_Gray.SmoothGaussian(3);
+            //Img_SourceSmoothed_Gray = Img_SourceSmoothed_Gray.ThresholdTrunc(new Gray(0.5));
+
+            /*double CannyAccThresh = CvInvoke.cvThreshold(Img_Egde_Gray.Ptr, Img_Otsu_Gray.Ptr, 0, 12,
+                Emgu.CV.CvEnum.THRESH.CV_THRESH_OTSU);// | Emgu.CV.CvEnum.THRESH.CV_THRESH_BINARY);
+            double CannyThresh = 0.4 * CannyAccThresh;
+            */
+            //Img_Otsu_Gray.Dispose();
+
+            //Img_Egde_Gray = Img_SourceSmoothed_Gray.Canny(CannyThresh, CannyAccThresh);
+            //Img_Egde_Gray = Img_SourceSmoothed_Gray.Canny(50, 100, 5);
+            //Img_Egde_Gray = Img_SourceSmoothed_Gray.Canny(100, 200, 5);
+
+            Img_Egde_Gray = Img_SourceSmoothed_Gray.Canny(400, 800, 5);
+
+            Img_Egde_Gray = Img_Egde_Gray.SmoothGaussian(5);
+
+            Img_Egde_Gray = Img_Egde_Gray.Canny(400, 800, 5);
+
+            //Img_Egde_Gray = Img_Egde_Gray.SmoothGaussian(5);
+
+            //Img_Egde_Gray = Img_Egde_Gray.Canny(200, 400, 5);
+
+            //Img_Egde_Gray = Img_SourceSmoothed_Gray.Canny(400, 800, 5);
+            //Img_Egde_Gray = Img_SourceSmoothed_Gray.Canny(1400, 1800, 5);
+            return Img_Egde_Gray;
+        }
+
+        static List<int> verticalBorders(Seq<Point> mySeq, int Width)
+        {
+
+            Seq<Point> currentSeq = mySeq;
+            int cnt = 1;
+            int[] vertColumns = new int[20];
+
+            currentSeq = mySeq;
+            int TotalAverage = 0;
+            while (currentSeq != null)
+            {
+                Rectangle rec = currentSeq.BoundingRectangle;
+                int X1 = rec.X;
+                int X2 = rec.X + rec.Width;
+
+                //X1 always less than Width
+                vertColumns[(X1 * 20) / Width]++;
+                vertColumns[(X2 * 20) / Width]++;
+                TotalAverage += 2;
+                currentSeq = currentSeq.HNext;
+                cnt++;
+            }
+            TotalAverage = TotalAverage / 20;
+
+            int prevCount = 0;
+            int LeftColumn = 0;
+            for (int i = 0; i < 20; i++)
+            {
+                if (vertColumns[i] > prevCount * 2 && vertColumns[i] > TotalAverage * 2 / 3)
+                {
+                    LeftColumn = i;
+                    break;
+                }
+                prevCount = vertColumns[i];
+            }
+
+            prevCount = 0;
+            int RightColumn = 0;
+            for (int i = 19; i >= 0; i--)
+            {
+                if (vertColumns[i] > prevCount * 2/3 && vertColumns[i] > TotalAverage * 2 / 3)
+                {
+                    RightColumn = i;
+                    break;
+                }
+                prevCount = vertColumns[i];
+            }
+
+            List<int> result = new List<int>();
+            result.Add(LeftColumn * (Width / 20));
+            result.Add(RightColumn * (Width / 20));
+            return result;
+
+        }
+
+        static List<int> gorBorders(Seq<Point> mySeq, int Height)
+        {
+
+            Seq<Point> currentSeq = mySeq;
+            int cnt = 1;
+            int[] gotColumns = new int[20];
+
+            currentSeq = mySeq;
+            int TotalAverage = 0;
+            while (currentSeq != null)
+            {
+                Rectangle rec = currentSeq.BoundingRectangle;
+                int Y1 = rec.Y;
+                int Y2 = rec.Y + rec.Height;
+
+                //X1 always less than Width
+                gotColumns[(Y1 * 20) / Height]++;
+                gotColumns[(Y2 * 20) / Height]++;
+                TotalAverage += 2;
+                currentSeq = currentSeq.HNext;
+                cnt++;
+            }
+            TotalAverage = TotalAverage / 20;
+
+            int prevCount = 0;
+            int TopColumn = 0;
+            for (int i = 0; i < 20; i++)
+            {
+                if (gotColumns[i] > prevCount * 2 && gotColumns[i] > TotalAverage * 2 / 3)
+                {
+                    TopColumn = i;
+                    break;
+                }
+                prevCount = gotColumns[i];
+            }
+
+            prevCount = 0;
+            int bottomColumn = 0;
+            for (int i = 19; i >= 0; i--)
+            {
+                if (gotColumns[i] > prevCount * 2 && gotColumns[i] > TotalAverage * 2 / 3)
+                {
+                    bottomColumn = i;
+                    break;
+                }
+                prevCount = gotColumns[i];
+            }
+
+            List<int> result = new List<int>();
+            result.Add(TopColumn * (Height / 20));
+            result.Add(bottomColumn * (Height / 20));
+            return result;
+
+        }
+
+        public static Rectangle FindSquare(Image<Bgr, byte> img)
+        {
+            const int N = 15;//11
+
+            MemStorage memStorage = new MemStorage();
+
+            Size sz = new Size(img.Width & -2, img.Height & -2);
+
+            Point[] hor = new Point[2];
+            hor[0] = new Point(1, 1);
+            hor[1] = new Point(1, img.Height);
+
+            Point[] ver = new Point[2];
+            ver[0] = new Point(1, 1);
+            ver[1] = new Point(img.Width, 1);
+
+            double originalArea = img.Height * img.Width;
+
+            img.DrawPolyline(hor, false, new Bgr(Color.White), 5);
+            img.DrawPolyline(ver, false, new Bgr(Color.White), 5);
+
+            //Emgu.CV.UI.ImageViewer.Show(img);
+
+            Image<Bgr, byte> timg = img.Copy(); // make a copy of input image
+            //Draw frame in begin of image for best square finding near edge of big image
+
+            //timg.DrawRect(0, 0, timg.Width, timg.Height, CvColor.Black, 2);
+
+            //Image<Gray, byte> gray = timg.Convert<Gray, Byte>();
+
+            //Image<Bgr, byte> pyr = new Image<Bgr, byte>(sz.Width / 2, sz.Height / 2);
+
+            // create empty sequence that will contain points -
+            // 4 points per square (the square's vertices)
+
+            Seq<Point> squares = new Seq<Point>(memStorage);
+
+            // select the maximum ROI in the image
+            // with the width and height divisible by 2
+            //timg.ROI = new System.Drawing.Rectangle(0, 0, sz.Width, sz.Height);
+
+            // down-Scale and upscale the image to filter out the noise
+            //Cv.PyrDown(timg, pyr, CvFilter.Gaussian5x5);
+            //Cv.PyrUp(pyr, timg, CvFilter.Gaussian5x5);
+            timg.PyrDown();
+            timg.PyrUp();
+            timg._SmoothGaussian(5);
+
+            Image<Gray, byte> tgray = timg.Convert<Gray, byte>();
+            timg.Dispose();
+
+
+
+            Image<Gray, byte> afterCanny = MyCanny(tgray);
+            tgray.Dispose();
+
+            //Emgu.CV.UI.ImageViewer.Show(afterCanny);
+
+            //Emgu.CV.UI.ImageViewer.Show(afterCanny);
+            IntPtr seq = IntPtr.Zero;
+            //Seq<Point> squares = new Seq<Point>(memStorage);
+
+            //Emgu.CV.UI.ImageViewer.Show(afterCanny);
+
+            int NumerOfCounturs = CvInvoke.cvFindContours(
+                      afterCanny.Ptr,
+                      memStorage.Ptr,
+                      ref seq,
+                      StructSize.MCvContour,
+                      Emgu.CV.CvEnum.RETR_TYPE.CV_RETR_CCOMP,
+                      Emgu.CV.CvEnum.CHAIN_APPROX_METHOD.CV_CHAIN_APPROX_SIMPLE,
+                      new System.Drawing.Point(0, 0));
+
+            Seq<Point> mySeq = new Seq<Point>(seq, memStorage);
+            Seq<Point> currentSeq = mySeq;
+            int cnt = 1;
+            double AreaMax = 0.0;
+            double SumX = 0;
+            double SumY = 0;
+            Seq<Point> maxSeq = null;
+
+            // we need to find the center of the document
+            currentSeq = mySeq;
+            while (currentSeq != null)
+            {
+                double squar = currentSeq.BoundingRectangle.Width * currentSeq.BoundingRectangle.Height;
+                Rectangle rec = currentSeq.BoundingRectangle;
+                SumX += (currentSeq.BoundingRectangle.X + currentSeq.BoundingRectangle.X + currentSeq.BoundingRectangle.Width) / 2;
+                SumY += (currentSeq.BoundingRectangle.Y + currentSeq.BoundingRectangle.Y + currentSeq.BoundingRectangle.Height) / 2;
+                currentSeq = currentSeq.HNext;
+                cnt++;
+            }
+
+            double CenterX = SumX / cnt;
+            double CenterY = SumY / cnt;
+
+            currentSeq = mySeq;
+            cnt = 1;
+            while (currentSeq != null)
+            {
+                double squar = currentSeq.BoundingRectangle.Width * currentSeq.BoundingRectangle.Height;
+                Rectangle rec = currentSeq.BoundingRectangle;
+                if (squar > AreaMax && squar < (originalArea * 0.9) && currentSeq.BoundingRectangle.Contains((int)CenterX, (int)CenterY))
+                {
+                    AreaMax = squar;
+                    maxSeq = currentSeq;
+                }
+                currentSeq = currentSeq.HNext;
+                cnt++;
+            }
+
+
+
+            //Console.WriteLine("{0}   P={1}   A={2}    R={3}", -1111, maxSeq.Perimeter, AreaMax, maxSeq.BoundingRectangle);
+
+            List<int> verts = verticalBorders(mySeq, img.Width);
+            List<int> gors = gorBorders(mySeq, img.Height);
+
+
+            Point[] points = new Point[4];
+            /*
+            points[0] = new Point(maxSeq.BoundingRectangle.X, maxSeq.BoundingRectangle.Y);
+            points[1] = new Point(maxSeq.BoundingRectangle.X, maxSeq.BoundingRectangle.Y+ maxSeq.BoundingRectangle.Height);
+            points[2] = new Point(maxSeq.BoundingRectangle.X+ maxSeq.BoundingRectangle.Width, maxSeq.BoundingRectangle.Y + maxSeq.BoundingRectangle.Height);
+            points[3] = new Point(maxSeq.BoundingRectangle.X + maxSeq.BoundingRectangle.Width, maxSeq.BoundingRectangle.Y);
+            */
+
+            points[0] = new Point(verts[0], gors[0]);
+            points[1] = new Point(verts[0], gors[1]);
+            points[2] = new Point(verts[1], gors[1]);
+            points[3] = new Point(verts[1], gors[0]);
+
+            //afterCanny.DrawPolyline(points, true, new Gray(1.0), 20);
+
+            img.DrawPolyline(points, true, new Bgr(Color.Red), 50);
+            img.Draw(new CircleF(new PointF((float)CenterX, (float)CenterY), 20), new Bgr(Color.Red), 10);
+
+            //Emgu.CV.UI.ImageViewer.Show(img);
+            afterCanny.Dispose();
+            return new Rectangle(verts[0], gors[0], verts[1] - verts[0], gors[1] - gors[0]);
+
+        }
+    }
+    #region Backup
+    /*
+        public static void FindSquare(IplImage img, MemStorage storage)
+           {
+               const int N = 15;//11
+               Size sz = new  Size(img.Width & -2, img.Height & -2);
+
+               IplImage timg = img.Copy().Clone(); // make a copy of input image
+                                            //Draw frame in begin of image for best square finding near edge of big image
+
+               timg.DrawRect(0, 0, timg.Width, timg.Height, CvColor.Black, 2);
+               IplImage gray = new IplImage(sz, BitDepth.U8, 1);
+               IplImage pyr = new IplImage(sz.Width / 2, sz.Height / 2, BitDepth.U8, 3);
+               // create empty sequence that will contain points -
+               // 4 points per square (the square's vertices)
+               CvSeq<CvPoint> squares = new CvSeq<CvPoint>(SeqType.Zero, CvSeq.SizeOf, storage);
+               // select the maximum ROI in the image
+               // with the width and height divisible by 2
+               timg.ROI = new CvRect(0, 0, sz.Width, sz.Height);
+
+               // down-Scale and upscale the image to filter out the noise
+               Cv.PyrDown(timg, pyr, CvFilter.Gaussian5x5);
+               Cv.PyrUp(pyr, timg, CvFilter.Gaussian5x5);
+               IplImage tgray = new IplImage(sz, BitDepth.U8, 1);
+
+               // extract the c-th color plane
+               timg.COI = 1;
+               Cv.Copy(timg, tgray, null);
+
+               // try several threshold levels
+               for (int l = 1; l < N; l++)
+               {
+                   // hack: use Canny instead of zero threshold level.
+                   // Canny helps to catch squares with gradient shading   
+                   if (l == 0)
+                   {
+                       // apply Canny. Take the upper threshold from slider
+                       // and set the lower to 0 (which forces edges merging) 
+                       Cv.Canny(tgray, gray, 0, Thresh, ApertureSize.Size5);
+                       // dilate canny output to remove potential
+                       // holes between edge segments 
+                       Cv.Dilate(gray, gray, null, 1);
+                   }
+                   else
+                   {
+                       // apply threshold if l!=0:
+                       //     tgray(x,y) = gray(x,y) < (l+1)*255/N ? 255 : 0                        
+                       Cv.Threshold(tgray, gray, (l + 1) * 255.0 / N, 255, ThresholdType.Binary);
+                   }
+
+                   // find contours and store them all as a list
+                   CvSeq<CvPoint> contours;
+                   Cv.FindContours(gray, storage, out contours, CvContour.SizeOf, ContourRetrieval.List, ContourChain.ApproxSimple, new CvPoint(0, 0));
+                   // test each contour
+                   while (contours != null)
+                   {
+                       // approximate contour with accuracy proportional
+                       // to the contour perimeter
+                       CvSeq<CvPoint> result = Cv.ApproxPoly(contours, CvContour.SizeOf, storage, ApproxPolyMethod.DP, contours.ContourPerimeter() * 0.02, false);
+                       // square contours should have 4 vertices after approximation
+                       // relatively large area (to filter out noisy contours)
+                       // and be convex.
+                       // Note: absolute value of an area is used because
+                       // area may be positive or negative - in accordance with the
+                       // contour orientation
+                       if (result.Total == 4 && Math.Abs(result.ContourArea(CvSlice.WholeSeq)) > 1000 && result.CheckContourConvexity())
+                       {
+                           double s = 0;
+                           for (int i = 0; i < 5; i++)
+                           {
+                               // find minimum Angle between joint
+                               // edges (maximum of cosine)
+                               if (i >= 2)
+                               {
+                                   double t = Math.Abs(Angle(result[i].Value, result[i - 2].Value, result[i - 1].Value));
+                                   s = s > t ? s : t;
+                               }
+                           }
+
+                           // if cosines of all angles are small
+                           // (all angles are ~90 degree) then write quandrange
+                           // vertices to resultant sequence 
+                           if (s < 0.3)
+                           {
+                               for (int i = 0; i < 4; i++)
+                               {
+                                   //My squares. Then sort counturs of squares by area
+                                   squares.Push(result[i].Value);
+                               }
+                           }
+
+                       }
+
+                       // take the next contour
+                       contours = contours.HNext;
+                   }
+               }
+           }
+     */
+    #endregion
+}
+=======
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+//using System.Threading.Tasks;
+using Emgu.CV;
+using Emgu.Util;
+using Emgu.CV.UI;
+using Emgu.CV.Structure;
+using Emgu.CV.CvEnum;
+
+using Emgu.CV.Features2D;
+
+using Emgu.CV.Util;
+
+
+
+
+namespace ScanProcessor
+{
+
+
+    class DocDetector
+    {
+
+        public static Bitmap ScaleImage(Bitmap original, Size newSize)
+        {
+            Bitmap resized = new Bitmap(original, newSize);
+            return resized;
+        }
+
+        public static Bitmap ScaleImage(Bitmap original, int newWidth)
+        {
+            return DocDetector.ScaleImage(original, new Size(newWidth, Convert.ToInt32(original.Height * (newWidth * 1.0 / original.Width))));
+        }
+
+        public static Bitmap CropImage(Bitmap original, Rectangle rec)
+        {
+            Rectangle cropRect = rec;
+            Bitmap src = original;
+            Bitmap target = new Bitmap(cropRect.Width, cropRect.Height);
+
+            using (Graphics g = Graphics.FromImage(target))
+            {
+                g.DrawImage(src, new Rectangle(0, 0, target.Width, target.Height),
+                                 cropRect,
+                                 GraphicsUnit.Pixel);
+            }
+
+            return target;
+        }
+        public static Image<Gray, byte> MyCanny(Image<Gray, byte> Img_Org_Gray)
+        {
+            Image<Gray, byte> Img_Source_Gray = Img_Org_Gray.Copy();
+            Image<Gray, byte> Img_Egde_Gray = Img_Source_Gray.CopyBlank();
+            Image<Gray, byte> Img_SourceSmoothed_Gray = Img_Source_Gray.CopyBlank();
+            //Image<Gray, byte> Img_Otsu_Gray = Img_Org_Gray.CopyBlank();
+
+            Img_SourceSmoothed_Gray = Img_Source_Gray.SmoothGaussian(3);
+            //Img_SourceSmoothed_Gray = Img_SourceSmoothed_Gray.ThresholdTrunc(new Gray(0.5));
+
+            /*double CannyAccThresh = CvInvoke.cvThreshold(Img_Egde_Gray.Ptr, Img_Otsu_Gray.Ptr, 0, 12,
+                Emgu.CV.CvEnum.THRESH.CV_THRESH_OTSU);// | Emgu.CV.CvEnum.THRESH.CV_THRESH_BINARY);
+            double CannyThresh = 0.4 * CannyAccThresh;
+            */
+            //Img_Otsu_Gray.Dispose();
+
+            //Img_Egde_Gray = Img_SourceSmoothed_Gray.Canny(CannyThresh, CannyAccThresh);
+            //Img_Egde_Gray = Img_SourceSmoothed_Gray.Canny(50, 100, 5);
+            //Img_Egde_Gray = Img_SourceSmoothed_Gray.Canny(100, 200, 5);
+
+            Img_Egde_Gray = Img_SourceSmoothed_Gray.Canny(400, 800, 5);
+
+            Img_Egde_Gray = Img_Egde_Gray.SmoothGaussian(5);
+
+            Img_Egde_Gray = Img_Egde_Gray.Canny(400, 800, 5);
+
+            //Img_Egde_Gray = Img_Egde_Gray.SmoothGaussian(5);
+
+            //Img_Egde_Gray = Img_Egde_Gray.Canny(200, 400, 5);
+
+            //Img_Egde_Gray = Img_SourceSmoothed_Gray.Canny(400, 800, 5);
+            //Img_Egde_Gray = Img_SourceSmoothed_Gray.Canny(1400, 1800, 5);
+            return Img_Egde_Gray;
+        }
+
+        static List<int> verticalBorders(Seq<Point> mySeq, int Width)
+        {
+
+            Seq<Point> currentSeq = mySeq;
+            int cnt = 1;
+            int[] vertColumns = new int[20];
+
+            currentSeq = mySeq;
+            int TotalAverage = 0;
+            while (currentSeq != null)
+            {
+                Rectangle rec = currentSeq.BoundingRectangle;
+                int X1 = rec.X;
+                int X2 = rec.X + rec.Width;
+
+                //X1 always less than Width
+                vertColumns[(X1 * 20) / Width]++;
+                vertColumns[(X2 * 20) / Width]++;
+                TotalAverage += 2;
+                currentSeq = currentSeq.HNext;
+                cnt++;
+            }
+            TotalAverage = TotalAverage / 20;
+
+            int prevCount = 0;
+            int LeftColumn = 0;
+            for (int i = 0; i < 20; i++)
+            {
+                if (vertColumns[i] > prevCount * 2 && vertColumns[i] > TotalAverage * 2 / 3)
+                {
+                    LeftColumn = i;
+                    break;
+                }
+                prevCount = vertColumns[i];
+            }
+
+            prevCount = 0;
+            int RightColumn = 0;
+            for (int i = 19; i >= 0; i--)
+            {
+                if (vertColumns[i] > prevCount * 2/3 && vertColumns[i] > TotalAverage * 2 / 3)
+                {
+                    RightColumn = i;
+                    break;
+                }
+                prevCount = vertColumns[i];
+            }
+
+            List<int> result = new List<int>();
+            result.Add(LeftColumn * (Width / 20));
+            result.Add(RightColumn * (Width / 20));
+            return result;
+
+        }
+
+        static List<int> gorBorders(Seq<Point> mySeq, int Height)
+        {
+
+            Seq<Point> currentSeq = mySeq;
+            int cnt = 1;
+            int[] gotColumns = new int[20];
+
+            currentSeq = mySeq;
+            int TotalAverage = 0;
+            while (currentSeq != null)
+            {
+                Rectangle rec = currentSeq.BoundingRectangle;
+                int Y1 = rec.Y;
+                int Y2 = rec.Y + rec.Height;
+
+                //X1 always less than Width
+                gotColumns[(Y1 * 20) / Height]++;
+                gotColumns[(Y2 * 20) / Height]++;
+                TotalAverage += 2;
+                currentSeq = currentSeq.HNext;
+                cnt++;
+            }
+            TotalAverage = TotalAverage / 20;
+
+            int prevCount = 0;
+            int TopColumn = 0;
+            for (int i = 0; i < 20; i++)
+            {
+                if (gotColumns[i] > prevCount * 2 && gotColumns[i] > TotalAverage * 2 / 3)
+                {
+                    TopColumn = i;
+                    break;
+                }
+                prevCount = gotColumns[i];
+            }
+
+            prevCount = 0;
+            int bottomColumn = 0;
+            for (int i = 19; i >= 0; i--)
+            {
+                if (gotColumns[i] > prevCount * 2 && gotColumns[i] > TotalAverage * 2 / 3)
+                {
+                    bottomColumn = i;
+                    break;
+                }
+                prevCount = gotColumns[i];
+            }
+
+            List<int> result = new List<int>();
+            result.Add(TopColumn * (Height / 20));
+            result.Add(bottomColumn * (Height / 20));
+            return result;
+
+        }
+
+        public static Rectangle FindSquare(Image<Bgr, byte> img)
+        {
+            const int N = 15;//11
+
+            MemStorage memStorage = new MemStorage();
+
+            Size sz = new Size(img.Width & -2, img.Height & -2);
+
+            Point[] hor = new Point[2];
+            hor[0] = new Point(1, 1);
+            hor[1] = new Point(1, img.Height);
+
+            Point[] ver = new Point[2];
+            ver[0] = new Point(1, 1);
+            ver[1] = new Point(img.Width, 1);
+
+            double originalArea = img.Height * img.Width;
+
+            img.DrawPolyline(hor, false, new Bgr(Color.White), 5);
+            img.DrawPolyline(ver, false, new Bgr(Color.White), 5);
+
+            //Emgu.CV.UI.ImageViewer.Show(img);
+
+            Image<Bgr, byte> timg = img.Copy(); // make a copy of input image
+            //Draw frame in begin of image for best square finding near edge of big image
+
+            //timg.DrawRect(0, 0, timg.Width, timg.Height, CvColor.Black, 2);
+
+            //Image<Gray, byte> gray = timg.Convert<Gray, Byte>();
+
+            //Image<Bgr, byte> pyr = new Image<Bgr, byte>(sz.Width / 2, sz.Height / 2);
+
+            // create empty sequence that will contain points -
+            // 4 points per square (the square's vertices)
+
+            Seq<Point> squares = new Seq<Point>(memStorage);
+
+            // select the maximum ROI in the image
+            // with the width and height divisible by 2
+            //timg.ROI = new System.Drawing.Rectangle(0, 0, sz.Width, sz.Height);
+
+            // down-Scale and upscale the image to filter out the noise
+            //Cv.PyrDown(timg, pyr, CvFilter.Gaussian5x5);
+            //Cv.PyrUp(pyr, timg, CvFilter.Gaussian5x5);
+            timg.PyrDown();
+            timg.PyrUp();
+            timg._SmoothGaussian(5);
+
+            Image<Gray, byte> tgray = timg.Convert<Gray, byte>();
+            timg.Dispose();
+
+
+
+            Image<Gray, byte> afterCanny = MyCanny(tgray);
+            tgray.Dispose();
+
+            //Emgu.CV.UI.ImageViewer.Show(afterCanny);
+
+            //Emgu.CV.UI.ImageViewer.Show(afterCanny);
+            IntPtr seq = IntPtr.Zero;
+            //Seq<Point> squares = new Seq<Point>(memStorage);
+
+            //Emgu.CV.UI.ImageViewer.Show(afterCanny);
+
+            int NumerOfCounturs = CvInvoke.cvFindContours(
+                      afterCanny.Ptr,
+                      memStorage.Ptr,
+                      ref seq,
+                      StructSize.MCvContour,
+                      Emgu.CV.CvEnum.RETR_TYPE.CV_RETR_CCOMP,
+                      Emgu.CV.CvEnum.CHAIN_APPROX_METHOD.CV_CHAIN_APPROX_SIMPLE,
+                      new System.Drawing.Point(0, 0));
+
+            Seq<Point> mySeq = new Seq<Point>(seq, memStorage);
+            Seq<Point> currentSeq = mySeq;
+            int cnt = 1;
+            double AreaMax = 0.0;
+            double SumX = 0;
+            double SumY = 0;
+            Seq<Point> maxSeq = null;
+
+            // we need to find the center of the document
+            currentSeq = mySeq;
+            while (currentSeq != null)
+            {
+                double squar = currentSeq.BoundingRectangle.Width * currentSeq.BoundingRectangle.Height;
+                Rectangle rec = currentSeq.BoundingRectangle;
+                SumX += (currentSeq.BoundingRectangle.X + currentSeq.BoundingRectangle.X + currentSeq.BoundingRectangle.Width) / 2;
+                SumY += (currentSeq.BoundingRectangle.Y + currentSeq.BoundingRectangle.Y + currentSeq.BoundingRectangle.Height) / 2;
+                currentSeq = currentSeq.HNext;
+                cnt++;
+            }
+
+            double CenterX = SumX / cnt;
+            double CenterY = SumY / cnt;
+
+            currentSeq = mySeq;
+            cnt = 1;
+            while (currentSeq != null)
+            {
+                double squar = currentSeq.BoundingRectangle.Width * currentSeq.BoundingRectangle.Height;
+                Rectangle rec = currentSeq.BoundingRectangle;
+                if (squar > AreaMax && squar < (originalArea * 0.9) && currentSeq.BoundingRectangle.Contains((int)CenterX, (int)CenterY))
+                {
+                    AreaMax = squar;
+                    maxSeq = currentSeq;
+                }
+                currentSeq = currentSeq.HNext;
+                cnt++;
+            }
+
+
+
+            //Console.WriteLine("{0}   P={1}   A={2}    R={3}", -1111, maxSeq.Perimeter, AreaMax, maxSeq.BoundingRectangle);
+
+            List<int> verts = verticalBorders(mySeq, img.Width);
+            List<int> gors = gorBorders(mySeq, img.Height);
+
+
+            Point[] points = new Point[4];
+            /*
+            points[0] = new Point(maxSeq.BoundingRectangle.X, maxSeq.BoundingRectangle.Y);
+            points[1] = new Point(maxSeq.BoundingRectangle.X, maxSeq.BoundingRectangle.Y+ maxSeq.BoundingRectangle.Height);
+            points[2] = new Point(maxSeq.BoundingRectangle.X+ maxSeq.BoundingRectangle.Width, maxSeq.BoundingRectangle.Y + maxSeq.BoundingRectangle.Height);
+            points[3] = new Point(maxSeq.BoundingRectangle.X + maxSeq.BoundingRectangle.Width, maxSeq.BoundingRectangle.Y);
+            */
+
+            points[0] = new Point(verts[0], gors[0]);
+            points[1] = new Point(verts[0], gors[1]);
+            points[2] = new Point(verts[1], gors[1]);
+            points[3] = new Point(verts[1], gors[0]);
+
+            //afterCanny.DrawPolyline(points, true, new Gray(1.0), 20);l
+
+            img.DrawPolyline(points, true, new Bgr(Color.Red), 50);
+            img.Draw(new CircleF(new PointF((float)CenterX, (float)CenterY), 20), new Bgr(Color.Red), 10);
+
+            //Emgu.CV.UI.ImageViewer.Show(img);
+            afterCanny.Dispose();
+            return new Rectangle(verts[0], gors[0], verts[1] - verts[0], gors[1] - gors[0]);
+
+        }
+    }
+    #region Backup
+    /*
+        public static void FindSquare(IplImage img, MemStorage storage)
+           {
+               const int N = 15;//11
+               Size sz = new  Size(img.Width & -2, img.Height & -2);
+
+               IplImage timg = img.Copy().Clone(); // make a copy of input image
+                                            //Draw frame in begin of image for best square finding near edge of big image
+
+               timg.DrawRect(0, 0, timg.Width, timg.Height, CvColor.Black, 2);
+               IplImage gray = new IplImage(sz, BitDepth.U8, 1);
+               IplImage pyr = new IplImage(sz.Width / 2, sz.Height / 2, BitDepth.U8, 3);
+               // create empty sequence that will contain points -
+               // 4 points per square (the square's vertices)
+               CvSeq<CvPoint> squares = new CvSeq<CvPoint>(SeqType.Zero, CvSeq.SizeOf, storage);
+               // select the maximum ROI in the image
+               // with the width and height divisible by 2
+               timg.ROI = new CvRect(0, 0, sz.Width, sz.Height);
+
+               // down-Scale and upscale the image to filter out the noise
+               Cv.PyrDown(timg, pyr, CvFilter.Gaussian5x5);
+               Cv.PyrUp(pyr, timg, CvFilter.Gaussian5x5);
+               IplImage tgray = new IplImage(sz, BitDepth.U8, 1);
+
+               // extract the c-th color plane
+               timg.COI = 1;
+               Cv.Copy(timg, tgray, null);
+
+               // try several threshold levels
+               for (int l = 1; l < N; l++)
+               {
+                   // hack: use Canny instead of zero threshold level.
+                   // Canny helps to catch squares with gradient shading   
+                   if (l == 0)
+                   {
+                       // apply Canny. Take the upper threshold from slider
+                       // and set the lower to 0 (which forces edges merging) 
+                       Cv.Canny(tgray, gray, 0, Thresh, ApertureSize.Size5);
+                       // dilate canny output to remove potential
+                       // holes between edge segments 
+                       Cv.Dilate(gray, gray, null, 1);
+                   }
+                   else
+                   {
+                       // apply threshold if l!=0:
+                       //     tgray(x,y) = gray(x,y) < (l+1)*255/N ? 255 : 0                        
+                       Cv.Threshold(tgray, gray, (l + 1) * 255.0 / N, 255, ThresholdType.Binary);
+                   }
+
+                   // find contours and store them all as a list
+                   CvSeq<CvPoint> contours;
+                   Cv.FindContours(gray, storage, out contours, CvContour.SizeOf, ContourRetrieval.List, ContourChain.ApproxSimple, new CvPoint(0, 0));
+                   // test each contour
+                   while (contours != null)
+                   {
+                       // approximate contour with accuracy proportional
+                       // to the contour perimeter
+                       CvSeq<CvPoint> result = Cv.ApproxPoly(contours, CvContour.SizeOf, storage, ApproxPolyMethod.DP, contours.ContourPerimeter() * 0.02, false);
+                       // square contours should have 4 vertices after approximation
+                       // relatively large area (to filter out noisy contours)
+                       // and be convex.
+                       // Note: absolute value of an area is used because
+                       // area may be positive or negative - in accordance with the
+                       // contour orientation
+                       if (result.Total == 4 && Math.Abs(result.ContourArea(CvSlice.WholeSeq)) > 1000 && result.CheckContourConvexity())
+                       {
+                           double s = 0;
+                           for (int i = 0; i < 5; i++)
+                           {
+                               // find minimum Angle between joint
+                               // edges (maximum of cosine)
+                               if (i >= 2)
+                               {
+                                   double t = Math.Abs(Angle(result[i].Value, result[i - 2].Value, result[i - 1].Value));
+                                   s = s > t ? s : t;
+                               }
+                           }
+
+                           // if cosines of all angles are small
+                           // (all angles are ~90 degree) then write quandrange
+                           // vertices to resultant sequence 
+                           if (s < 0.3)
+                           {
+                               for (int i = 0; i < 4; i++)
+                               {
+                                   //My squares. Then sort counturs of squares by area
+                                   squares.Push(result[i].Value);
+                               }
+                           }
+
+                       }
+
+                       // take the next contour
+                       contours = contours.HNext;
+                   }
+               }
+           }
+     */
+    #endregion
+}
+>>>>>>> 3c7aa6b539aefd5f62815c6867c77fe28c64cb81

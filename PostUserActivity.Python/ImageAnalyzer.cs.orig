@@ -1,0 +1,604 @@
+﻿//#define withOutErrorParse
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
+using PostUserActivity.Contracts;
+using PostUserActivity.Contracts.HWContracts;
+using Emgu.CV;
+using Emgu.CV.Structure;
+using System.ComponentModel;
+using System.Configuration;
+using NLog;
+using ScanProcessor;
+using System.Threading;
+using ConfigurationSettings = CommonLib.ConfigurationSettings;
+using System.Globalization;
+
+//using System.Collections.
+
+namespace PostUserActivity.Python
+{
+
+    /// <summary>
+    /// предположим, что тут будет анализатор картинок
+    /// </summary>
+    public class ImageAnalyzer : IImageAnalyzer
+    {
+        Image<Bgr, Byte> currentFrame; //current image aquired from webcam for display
+        Image<Gray, byte> result, TrainedFace = null; //used to store the result image and trained face
+        Image<Gray, byte> gray_frame = null; //grayscale current image aquired from webcam for processing
+
+        private Logger logger;
+        private ConfigurationSettings config;
+        HashSet<AnalyzeImageResultType> webCamErrors = new HashSet<AnalyzeImageResultType>();
+
+        //int _counter = 0;
+        //bool _isStopped = false;
+        System.ComponentModel.BackgroundWorker backgoundThread_ImageAnalizer;
+
+        bool isFinalGoodImageFound = false;
+
+        private string pythonDetectorPath;
+
+        #region ctor
+        public ImageAnalyzer(string pythonDetectorPath, CommonLib.ConfigurationSettings config)
+        {
+            logger = LogManager.GetCurrentClassLogger();
+            logger.Info("Entering ImageAnalyzer constructor");
+            this.config = config;
+
+            backgoundThread_ImageAnalizer = new BackgroundWorker();
+            backgoundThread_ImageAnalizer.WorkerSupportsCancellation = true;
+            backgoundThread_ImageAnalizer.DoWork += bwImageAnalizer_DoWork;
+            backgoundThread_ImageAnalizer.RunWorkerCompleted += bwImageAnalizer_RunWorkerCompleted;
+            backgoundThread_ImageAnalizer.ProgressChanged += bwImageAnalizer_ProgressChanged;
+            this.pythonDetectorPath = pythonDetectorPath;
+
+            logger.Info("background workers added!");
+        }
+
+        public ImageAnalyzer(string pythonDetectorPath, CommonLib.ConfigurationSettings config, IHWDeviceWork webCam)
+            : this(pythonDetectorPath, config)
+        {
+            this.WebCam = webCam;
+        }
+
+        private IHWDeviceWork WebCam { get; set; }
+
+        #endregion
+
+        void bwImageAnalizer_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            //throw new NotImplementedException();
+        }
+
+        private class ImgAnalyzerDto
+        {
+            public Image<Bgr, Byte> Img { get; set; }
+            public DeviceType Device { get; set; }
+            public bool isCamStopped { get; set; }
+            public Image BaseImage { get; set; }
+        }
+
+        void bwImageAnalizer_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            logger.Info("We returned from Python: bwImageAnalizer_RunWorkerCompleted");
+            ImageProcessResult pythonResult = (ImageProcessResult)e.Result;
+            List<AnalyzeImageResultType> errors = new List<AnalyzeImageResultType>();
+
+            if (pythonResult.isGood)
+            {
+                if (pythonResult.Device == DeviceType.WebCam)
+                {
+                    isFinalGoodImageFound = true;
+                }
+                Console.WriteLine("Python : Good Face FOUND!");
+                logger.Info("Python : Good Face FOUND!");
+            }
+            else
+            {
+                Console.WriteLine("Python was not able to detect good face. VERY BAD FACE DETECTED!");
+                logger.Info("Python was not able to detect good face. VERY BAD FACE DETECTED!");
+
+                if (pythonResult.ProblemList != null)
+                {
+                    errors = pythonResult.ProblemList.Select(p => (AnalyzeImageResultType)p).ToList();
+
+                    var errorsDescr = string.Join(", ", AnalyzeImageResultDescriptions.ErrorsDescription(pythonResult.ProblemList.Select(p => (AnalyzeImageResultType)p).ToList()).ToArray());
+                    var errorMsg = "Python Problems: " + errorsDescr + " (" + string.Join(", ", pythonResult.ProblemList.Select(p => p.ToString()).ToArray()) + ")";
+
+                    logger.Info(errorMsg);
+                    Console.WriteLine(errorMsg);
+
+                    if (pythonResult.Device == DeviceType.WebCam)
+                    {
+                        // add error to the list if error was not in the list before
+                        for (int i = 0; i < pythonResult.ProblemList.Length; i++)
+                        {
+                            AnalyzeImageResultType eTyped = (AnalyzeImageResultType)pythonResult.ProblemList[i];
+                            if (!webCamErrors.Contains(eTyped))
+                                webCamErrors.Add(eTyped);
+                        }
+                    }
+                }
+            }
+
+
+#if (withOutErrorParse)
+            //билд по просьбе Романа, тут ошибки сканера просто пропускаются       
+            if (pythonResult.Device == DeviceType.Scanner)
+            {
+                AnalyzeCompleted(this, new AnalyzeCompletedEventArgs(pythonResult.Device, new List<AnalyzeImageResultType>(), pythonResult.BaseImage, pythonResult.CroppedImage));
+                logger.Info("билд по просьбе Романа, тут ошибки сканера просто пропускаются. Выводим, что мы успешно нашли изображение");
+                return;
+            }
+#endif
+
+
+
+
+            if (pythonResult.isGood == true)
+            {
+                Console.WriteLine("Python returned GOOD");
+                logger.Info("Python returned GOOD");
+
+                if (pythonResult.Device == DeviceType.WebCam)
+                {
+                    AnalyzeCompleted(this, new AnalyzeCompletedEventArgs(pythonResult.Device, errors, pythonResult.RGBImage, pythonResult.CroppedImage));
+                }
+                else
+                {
+                    AnalyzeCompleted(this, new AnalyzeCompletedEventArgs(pythonResult.Device, errors, pythonResult.BaseImage, pythonResult.CroppedImage));
+                }
+                logger.Info("Exiting bwImageAnalizer_RunWorkerCompleted 1");
+                return;
+            }
+
+
+            if (pythonResult.Device == DeviceType.WebCam && backgoundThread_ImageAnalizer.IsBusy == false && pythonResult.isCamStopped)
+            {
+                Console.WriteLine("pythonResult bad - may be empty results list");
+                Console.WriteLine("webCamErrors: " + webCamErrors.ToList().ToString());
+                Console.WriteLine("webCamErrors: " + webCamErrors.ToList().Count.ToString());
+                logger.Info("pythonResult bad - may be empty results list");
+                AnalyzeCompleted(this, new AnalyzeCompletedEventArgs(pythonResult.Device, webCamErrors.ToList(), pythonResult.RGBImage, pythonResult.CroppedImage));
+                Console.WriteLine("pythonResult bad - may be empty results list after event");
+                logger.Info("pythonResult bad - may be empty results list after event");
+                logger.Info("Exiting bwImageAnalizer_RunWorkerCompleted 3");
+                return;
+            }
+            else
+            {
+                logger.Info("(pythonResult.Device == DeviceType.WebCam && backgoundThread_ImageAnalizer.IsBusy == false && pythonResult.isCamStopped) - false");
+                logger.Info("pythonResult.Device = {0}, backgoundThread_ImageAnalizer.IsBusy = {1}, pythonResult.isCamStopped = {2}", pythonResult.Device,
+                    backgoundThread_ImageAnalizer.IsBusy, pythonResult.isCamStopped);
+                if (WebCam != null)
+                {
+                    logger.Info("WebCam is Recording: {0}", WebCam.IsRunning());
+                }
+
+                Console.WriteLine("(pythonResult.Device == DeviceType.WebCam && backgoundThread_ImageAnalizer.IsBusy == false && pythonResult.isCamStopped) - false");
+                Console.WriteLine("pythonResult.Device = {0}, backgoundThread_ImageAnalizer.IsBusy = {1}, pythonResult.isCamStopped = {2}", pythonResult.Device,
+                    backgoundThread_ImageAnalizer.IsBusy, pythonResult.isCamStopped);
+                if (WebCam != null)
+                {
+                    Console.WriteLine("WebCam is Recording: {0}", WebCam.IsRunning());
+                }
+                //  смысл такой: передаем в аналайзер текущее состояние камеры, тк возникает ситуация, (из-за асинхронности)
+                //  когда мы мы проверяем кадр и в нем состояние камеры запущена, но в реальности это уже последний кадр и сама камера уже остановлена
+                //  из-за устновленного флага pythonResult.isCamStopped == false, и того, что изображение не распознано, просиходит пропуск этого кадра и 
+                //  на форме просто замирает последний кадр, без отображения результатов анализа (обычно это ошибка)
+                //  TODO: Саше протестить на то, что происходит, если результат анализа положительный
+                //  потом причесать код и провести рефракторинг
+                if (pythonResult.Device == DeviceType.WebCam && backgoundThread_ImageAnalizer.IsBusy == false && WebCam != null && !WebCam.IsRunning())
+                {
+                    AnalyzeCompleted(this, new AnalyzeCompletedEventArgs(pythonResult.Device, webCamErrors.ToList(), pythonResult.RGBImage, pythonResult.CroppedImage));
+                }
+
+
+            }
+
+            // if we have scanner only
+            if (pythonResult.Device == DeviceType.Scanner)
+            {
+                AnalyzeImage(this, new AnalyzeCompletedEventArgs(pythonResult.Device, errors, pythonResult.RGBImage, null));
+                logger.Info("Exiting bwImageAnalizer_RunWorkerCompleted 2");
+                return;
+            }
+        }
+        void bwImageAnalizer_DoWork(object sender, DoWorkEventArgs e)
+        {
+            logger.Info("Send img to Python");
+            var dto = (ImgAnalyzerDto)e.Argument;
+            //Image<Bgr, Byte> originalFrame = (Image<Bgr, Byte>)e.Argument;
+            Image<Bgr, Byte> originalFrame = dto.Img;
+
+            PythonImageAnalyzer ia = new PythonImageAnalyzer(pythonDetectorPath, config);
+            ImageProcessResult pythonResult;
+#if (withOutErrorParse)
+            pythonResult = ia.Analyze((Image)originalFrame.Bitmap, (int)dto.Device);
+#else
+            pythonResult = ia.Analyze((Image)originalFrame.Bitmap);
+#endif
+
+
+            pythonResult.Device = dto.Device;
+            pythonResult.isCamStopped = dto.isCamStopped;
+            pythonResult.BaseImage = dto.BaseImage;
+            e.Result = pythonResult;
+            logger.Info("Get img from Python");
+        }
+        private void ProcessNewImageFromCam(Image inputImage, DeviceType device, bool isCamStopped, bool isScanLayoutSet)
+        {
+            if(DeviceType.Scanner == device)
+            {
+                var ScanJpg = (ConfigurationManager.AppSettings["ScanJpgPath"]);
+                if (ScanJpg != "")
+                {
+                    try
+                    {
+                        var temp = Image.FromFile(ScanJpg);
+                        inputImage = temp;
+                    }
+                    catch
+                    {
+                        Console.WriteLine("ScanJpg FILE NOT FOUND!");
+                        logger.Info("ScanJpg FILE NOT FOUND");
+                    }
+                    
+                    Console.WriteLine("ScanJpgPath in config not null!We CHANGE analyze image!!!");
+                    logger.Info("ScanJpgPath in config not null!We CHANGE analyze image!!!");
+                }
+            }
+            else
+            {
+                var photoJpg = (ConfigurationManager.AppSettings["PhotoJpgPath"]);
+                if (photoJpg != "")
+                {
+                  
+                    try
+                    {
+                        var temp = Image.FromFile(photoJpg);
+                        inputImage = temp;
+                    }
+                    catch
+                    {
+                        Console.WriteLine("PhotoJpg FILE NOT FOUND!");
+                        logger.Info("PhotoJpg FILE NOT FOUND");
+                    }
+                    Console.WriteLine("PhotoJpgPath in config not null!We CHANGE analyze image!!!");
+                    logger.Info("PhotoJpgPath in config not null!We CHANGE analyze image!!!");
+                }
+            }
+            
+            logger.Info("ProcessNewImageFromCam running");
+
+            //  
+
+            if (isCamStopped && backgoundThread_ImageAnalizer.IsBusy == false)
+            {
+                AnalyzeCompleted(this, new AnalyzeCompletedEventArgs(DeviceType.WebCam, webCamErrors.ToList(), null, null));
+                return;
+            }
+
+            var baseImg = (Image)inputImage.Clone();
+            bool isFaceFound = false;
+            Image<Bgr, Byte> originalFrame = new Image<Bgr, Byte>(new Bitmap((Image)inputImage.Clone())); // берем оргинальную картинку
+
+            if (device == DeviceType.Scanner)
+            {
+                var errs = new List<AnalyzeImageResultType>();
+                if (!isScanLayoutSet)
+                {
+                    //  используем docDetector
+                      Rectangle rec = DocDetector.FindSquare(originalFrame); // находим положение паспорта
+                Bitmap croppedImage = DocDetector.CropImage(new Bitmap(inputImage), rec); // вырезаем паспорт
+
+                inputImage.Save("NonCrop" + DateTime.Now.ToString("yyyy-MM-dd-hh-mm") + ".jpg");
+
+                if (croppedImage != null && croppedImage.Height > croppedImage.Width)
+                {
+                    //  must be rotated 90 degrees
+                    baseImg.RotateFlip(RotateFlipType.Rotate90FlipNone);
+                    baseImg.Save("NonCropAfterRotate" + DateTime.Now.ToString("yyyy-MM-dd-hh-mm-ss") + ".jpg");
+                }
+                int bestScale = 600;
+                /*
+                for (int scale = 1100; scale > 210; scale = scale - 200)
+                {
+                    Bitmap tmpBitmap = DocDetector.ScaleImage(new Bitmap(croppedImage), scale);
+                    Image<Bgr, Byte> tempImg = new Image<Bgr, Byte>(new Bitmap((Image)tmpBitmap.Clone()));
+                    FaceDetectorProcessor _fdp = new FaceDetectorProcessor(tempImg);
+                    Rectangle[] _faceFoundRect = _fdp.isFaceDetected();
+                    if (_faceFoundRect.Count() == 1)
+                    {
+                        bestScale = scale;
+                        break;
+                    }
+                }
+                 */
+                     inputImage = new Bitmap(croppedImage); 
+                //inputImage = DocDetector.ScaleImage(new Bitmap(croppedImage), bestScale); //уменьшаем картинку паспорта
+                }
+                float face_width, face_height, face_delta_min, face_delta_max;
+                int dpi;
+                try
+                {
+
+                    face_width = float.Parse(ConfigurationManager.AppSettings["face_width"], System.Globalization.CultureInfo.InvariantCulture);
+                    face_height = float.Parse(ConfigurationManager.AppSettings["face_height"], System.Globalization.CultureInfo.InvariantCulture);
+                    face_delta_min = float.Parse(ConfigurationManager.AppSettings["face_delta_min"], System.Globalization.CultureInfo.InvariantCulture);
+                    face_delta_max = float.Parse(ConfigurationManager.AppSettings["face_delta_max"], System.Globalization.CultureInfo.InvariantCulture);
+                    dpi = int.Parse(ConfigurationManager.AppSettings["ScannerDpi"]);
+                    
+
+                }
+                catch 
+                {
+                    Console.WriteLine("Не смог считать параметры face_wigth и.т.д.");
+                    logger.Error("Не смог считать параметры face_wigth и.т.д.");
+                    face_width = 2.0f;
+                    face_height = 2.6f;
+                    face_delta_min = 0.2f;
+                    face_delta_max = 0.9f;
+                    dpi = 300;
+                }
+                
+                
+               
+               
+                originalFrame = new Image<Bgr, Byte>(new Bitmap((Image)inputImage.Clone()));
+                inputImage.Save("Crop" + DateTime.Now.ToString("yyyy-MM-dd-hh-mm") + ".jpg");
+
+                //  inputImage
+
+                var cfg = string.IsNullOrEmpty(ConfigurationManager.AppSettings["UsePythonForFindFaceInScan"]) ? true : bool.Parse(ConfigurationManager.AppSettings["UsePythonForFindFaceInScan"]);
+                if (!cfg)
+                {
+                    FaceDetectorProcessor scanFaceDetectorProcessor = new FaceDetectorProcessor(originalFrame);
+                    Rectangle[] facesOnScan = scanFaceDetectorProcessor.isFaceDetected();
+                    //  все хорошо но, на всякий случай даже если включено не иcпользовать Python, если не нашли, то всё равно будем искать питоном
+                    if (facesOnScan.Length == 1)
+                    {
+                        var sze = facesOnScan[0].Size;
+                        Bitmap originalFrameImg = originalFrame.ToBitmap();                        
+                        facesOnScan = FaceDetectorProcessor.squareExtension(facesOnScan,0.35);                        
+                        var croppedFace = DocDetector.CropImage(originalFrameImg, facesOnScan[0]);
+                        croppedFace.Save("ScanCropedFace" + DateTime.Now.ToString("yyyy-MM-dd-hh-mm") + ".png");
+                        baseImg.RotateFlip(RotateFlipType.Rotate90FlipNone);
+                        AnalyzeCompleted(this, new AnalyzeCompletedEventArgs(device, new List<AnalyzeImageResultType>(), baseImg, croppedFace));
+
+                        return;
+                    }
+                    else
+                    {
+                        
+                        if(facesOnScan.Length == 0)
+                        {
+<<<<<<< HEAD
+=======
+                            
+>>>>>>> 40b893ae363159923468eb7fa54971c10063596b
+                            for (int i = 0; i < 3; i++)
+                            {
+                                scanFaceDetectorProcessor = null;
+                                facesOnScan = null;
+                                //var sze = facesOnScan[0].Size;
+                                inputImage.RotateFlip(RotateFlipType.Rotate90FlipNone);
+                                inputImage.Save("AfterRotate " + i +  " " + DateTime.Now.ToString("yyyy-MM-dd-hh-mm-ss") + ".jpg");
+                                originalFrame = new Image<Bgr, Byte>(new Bitmap((Image)inputImage));
+                                scanFaceDetectorProcessor = new FaceDetectorProcessor(originalFrame);
+                                facesOnScan = scanFaceDetectorProcessor.isFaceDetected();
+                                if(facesOnScan.Length >= 1)
+                                {
+<<<<<<< HEAD
+                                    Bitmap originalFrameImg = originalFrame.ToBitmap();
+                                    facesOnScan = FaceDetectorProcessor.squareExtension(facesOnScan, 0.35);
+                                    var croppedFace = DocDetector.CropImage(originalFrameImg, facesOnScan[0]);
+                                    AnalyzeCompleted(this, new AnalyzeCompletedEventArgs(device, new List<AnalyzeImageResultType>(), inputImage, croppedFace));
+                                    break;
+=======
+                                    Bitmap croppedFace = null;     
+                                    var counter = 0;
+                                    foreach (var item in facesOnScan)
+                                    {
+                                        //если фоток удовлетворяющих критерию несколько, вернуть ошибку несколько лиц
+                                        var sze = item.Size;
+                                        double RectangleSquare = 0;
+                                        //double minRectangleSquare = (face_width - 0.5 * face_delta) * (face_height - 0.5 * face_delta);
+                                        //double maxRectamgleSquare = (face_width + 0.5 * face_delta) * (face_height + 0.5 * face_delta);
+                                        double minRectangleSquare = face_width * face_height * face_delta_min;
+                                        double maxRectamgleSquare = face_width * face_height * face_delta_max;
+                                        if (isScanLayoutSet)
+                                        {
+                                            RectangleSquare = ((double) sze.Width / dpi) * 2.54 *  ((double)sze.Height / dpi) * 2.54;
+                                        }
+                                        else
+                                        {
+                                            RectangleSquare = ((double)sze.Width / 300) * 2.54 * ((double)sze.Height / 300) * 2.54;
+                                        }
+                                        if (RectangleSquare >= minRectangleSquare && RectangleSquare <= maxRectamgleSquare)
+                                        {
+                                            counter++;
+                                            Bitmap originalFrameImg = originalFrame.ToBitmap();
+                                            facesOnScan = FaceDetectorProcessor.squareExtension(facesOnScan, 0.35);
+
+                                            croppedFace = DocDetector.CropImage(originalFrameImg, item);
+                                            croppedFace.Save("foundFace" + DateTime.Now.ToString("yyyy-MM-dd-hh-mm-ss") + ".jpg");
+                                            
+                                        }
+    
+                                    }
+
+                                    if (counter == 1)
+                                    {
+                                        inputImage.RotateFlip(RotateFlipType.Rotate90FlipNone);
+                                        AnalyzeCompleted(this, new AnalyzeCompletedEventArgs(device, new List<AnalyzeImageResultType>(), inputImage, croppedFace));
+                                        return;
+                                    }
+                                    else
+                                    {
+                                        if(counter > 1)
+                                        {
+                                            errs.Add(AnalyzeImageResultType.MoreThanOnePerson);
+                                            AnalyzeImage(this, new AnalyzeCompletedEventArgs(device, errs, inputImage, croppedFace));
+                                            Console.WriteLine("Несколько лиц!!");
+                                            return;//несколько лиц                             
+                                        }
+                                               
+                                    }
+>>>>>>> 40b893ae363159923468eb7fa54971c10063596b
+                                }
+                            }
+                            errs.Clear();
+                            errs.Add(AnalyzeImageResultType.FaceNotFound);
+                            AnalyzeImage(this, new AnalyzeCompletedEventArgs(device, errs, inputImage, null));
+                            Console.WriteLine("face not found at all");
+                            logger.Info("face not found at all");
+                        }
+                        else
+                        {
+                            var ErrorList = new List<AnalyzeImageResultType>();
+                            ErrorList.Add(AnalyzeImageResultType.MoreThanOnePerson);
+                            Bitmap originalFrameImg = originalFrame.ToBitmap();
+                            for (int i = 0; i < facesOnScan.Length; i++)
+                            {
+                                var croppedFace = DocDetector.CropImage(originalFrameImg, facesOnScan[i]);
+                                croppedFace.Save("faceFound_" + i + "_" + DateTime.Now.ToString("yyyy-MM-dd-hh-mm") + ".jpg");
+                            }
+                            AnalyzeImage(this, new AnalyzeCompletedEventArgs(device, errs, inputImage, null));
+                            Console.WriteLine("More than 2 faces found in CV in c# or not found at all");
+                            logger.Info("More than 2 faces found in CV in c# or not found at all");
+                            
+                        }
+
+                        return;
+                    }
+                }
+
+                isFaceFound = true;
+            } // end scanner logic
+
+            if (isFinalGoodImageFound == true && device == DeviceType.WebCam)
+            {   // процесс обработки с камеры закончен
+                Console.WriteLine("Good final image found. We will not process more images.");
+                logger.Info("Good final image found.  We will not process more images.");
+                return; // ничего делать не надо
+            }
+
+            currentFrame = originalFrame;
+
+
+            // See if we have face, process is fast!
+
+            FaceDetectorProcessor fdp = new FaceDetectorProcessor(currentFrame);
+            Rectangle[] faceFoundRect = fdp.isFaceDetected();
+
+
+            if (faceFoundRect != null && faceFoundRect.Length == 1)
+            {
+                // рисуем рамку лица на экране
+                isFaceFound = true;
+                using (Graphics g = Graphics.FromImage(inputImage))
+                {
+                    Rectangle rec = faceFoundRect[0];
+                    var scaleX = getScale(baseImg.Height, inputImage.Height);
+                    var scaleY = getScale(baseImg.Width, inputImage.Width);
+                    rec.X = Convert.ToInt32(rec.X * scaleX);
+                    rec.Y = Convert.ToInt32(rec.Y * scaleY);
+                    rec.Height = Convert.ToInt32(rec.Height * scaleY);
+                    rec.Width = Convert.ToInt32(rec.Width * scaleX);
+                    g.DrawRectangle(new Pen(Color.LimeGreen, 5.0f), rec);
+                }
+                //inputImage.Save(string.Format("D:\\\\qwe {0}.png", DateTime.Now.Ticks));
+            }
+
+            if (faceFoundRect != null && faceFoundRect.Length > 1)
+            {
+                // у нас слишком много лиц                
+                var Error = new List<AnalyzeImageResultType>();
+                Error.Add(AnalyzeImageResultType.MoreThanOnePerson);
+                AnalyzeCompleted(this, new AnalyzeCompletedEventArgs(device, Error, inputImage, null));
+                Console.WriteLine("More than 2 faces found in CV in c#!");
+                logger.Info("More than 2 faces found in CV in c#!");
+                return;
+            }
+
+            Console.WriteLine("Face detected: " + isFaceFound.ToString() + "   Python is busy: " + backgoundThread_ImageAnalizer.IsBusy.ToString());
+
+            if (isFaceFound && backgoundThread_ImageAnalizer.IsBusy == false && isFinalGoodImageFound == false)
+            {
+                // если лицо НАЙДЕНо на кадре и процеес питона не занят и картинки финальной еще нет - запускаем процесс обработки
+                // для сканера этот код будет вызываться всегда!
+                var dto = new ImgAnalyzerDto
+                {
+                    BaseImage = baseImg,
+                    Device = device,
+                    Img = originalFrame,
+                    isCamStopped = isCamStopped
+                };
+                logger.Info("START THREAD TO ANALIZE IN PYTHON !");
+                Console.WriteLine("START THREAD TO ANALIZE IN PYTHON !");
+                backgoundThread_ImageAnalizer.RunWorkerAsync(dto);
+            }
+            else
+            {
+                //  кастом логика для webCam
+                if (device == DeviceType.WebCam && isCamStopped && backgoundThread_ImageAnalizer.IsBusy == false)
+                {
+                    if (webCamErrors.ToList().Count == 0)
+                        webCamErrors.Add(AnalyzeImageResultType.FaceNotFound);
+                    AnalyzeCompleted(this, new AnalyzeCompletedEventArgs(device, webCamErrors.ToList(), inputImage, null));
+                    return;
+                }
+
+                AnalyzeImage(this, new AnalyzeCompletedEventArgs(device, new List<AnalyzeImageResultType>() { AnalyzeImageResultType.FaceNotFound }, inputImage, null));
+
+                if (!webCamErrors.Contains(AnalyzeImageResultType.FaceNotFound))
+                {
+                    webCamErrors.Add(AnalyzeImageResultType.FaceNotFound);
+                }
+
+            }
+            logger.Info("RunParralelFrameGrabber exiting");
+        }
+
+        private static Func<int, int, float> getScale = (m1, m2) =>
+        {
+            if (m1 != m2)
+            {
+                return m1 / (float)m2;
+            }
+            return 1;
+        };
+
+
+
+        /****************************************************************************************************/
+
+        #region Implementation of IImageAnalyzer
+        public void Analyze(ImageChangedEventArgs imgArgs, DeviceType device)
+        {
+            logger.Info("entering Analyze Method");
+            var qwe = AnalyzeCompleted.GetInvocationList();
+
+            Image inputImage = imgArgs.Img;
+            
+
+            ProcessNewImageFromCam(inputImage, device, imgArgs.СamStopped, imgArgs.IsScanLayoutSet);
+
+            logger.Info("After run parrallel framegraber. Exiting Analyze");
+
+        }
+
+        public event EventHandler<AnalyzeCompletedEventArgs> AnalyzeCompleted = (sender, e) => { };
+        public event EventHandler<AnalyzeCompletedEventArgs> AnalyzeImage = (sender, e) => { };
+
+        #endregion
+    }
+}

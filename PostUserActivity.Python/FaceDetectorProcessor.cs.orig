@@ -1,0 +1,119 @@
+<<<<<<< HEAD
+﻿using System;
+using System.Drawing;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+using System.ComponentModel;
+using System.Data;
+
+using Emgu.CV.UI;
+using Emgu.CV;
+using Emgu.CV.Structure;
+using Emgu.CV.CvEnum;
+
+using System.IO;
+using System.Xml;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Security.Principal;
+using Microsoft.Win32.SafeHandles;
+
+
+namespace PostUserActivity.Python
+{
+    public class FaceDetectorProcessor
+    {
+        Image<Bgr, byte> _input;
+        static CascadeClassifier Face = null;
+
+        public FaceDetectorProcessor(Image input)
+        {
+            Image<Bgr, byte> input2 = new Image<Bgr, byte>((Bitmap)input);
+
+            _input = input2.Resize(320, 240, Emgu.CV.CvEnum.INTER.CV_INTER_CUBIC);
+            if (Face == null)
+            {
+                Face = new CascadeClassifier("./Cascades/haarcascade_frontalface_default.xml");//Our face detection method 
+            }
+        }
+
+        public FaceDetectorProcessor(Image<Bgr, byte> input)
+        {
+            Image<Bgr, byte> input2 = input;
+
+            _input = input2.Resize(320, 240, Emgu.CV.CvEnum.INTER.CV_INTER_CUBIC);
+            if (Face == null)
+            {
+                Face = new CascadeClassifier("./Cascades/haarcascade_frontalface_default.xml");//Our face detection method 
+            }
+        }
+
+        public Rectangle[] isFaceDetected()
+        {
+            Image<Gray, byte> gray_frame = null; 
+            gray_frame = _input.Convert<Gray, Byte>();
+            //Rectangle[] facesDetected = Face.DetectMultiScale(gray_frame, 1.2, 10, new Size(50, 50), Size.Empty);
+            Rectangle[] facesDetected = Face.DetectMultiScale(gray_frame, 1.2, 10, new Size(50, 50), Size.Empty);
+            if (facesDetected != null && facesDetected.Count() == 1)
+                return facesDetected;
+            return facesDetected;
+        }
+    }
+}
+=======
+﻿using System;
+using System.Drawing;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+using System.ComponentModel;
+using System.Data;
+
+using Emgu.CV.UI;
+using Emgu.CV;
+using Emgu.CV.Structure;
+using Emgu.CV.CvEnum;
+
+using System.IO;
+using System.Xml;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Security.Principal;
+using Microsoft.Win32.SafeHandles;
+
+
+namespace PostUserActivity.Python
+{
+    public class FaceDetectorProcessor
+    {
+        Image<Bgr, byte> _input;
+        static CascadeClassifier Face = null;
+        
+        public FaceDetectorProcessor(Image<Bgr, byte> input)
+        {
+            Image<Bgr, byte> input2 = input;
+
+            //_input = input2.Resize(320, 240, Emgu.CV.CvEnum.INTER.CV_INTER_CUBIC);
+            _input = input2;
+            if (Face == null)
+            {
+                Face = new CascadeClassifier("./Cascades/haarcascade_frontalface_default.xml");//Our face detection method 
+            }
+        }
+
+        public Rectangle[] isFaceDetected()
+        {
+            Image<Gray, byte> gray_frame = null; 
+            gray_frame = _input.Convert<Gray, Byte>();
+            //Rectangle[] facesDetected = Face.DetectMultiScale(gray_frame, 1.2, 10, new Size(50, 50), Size.Empty);
+            Rectangle[] facesDetected = Face.DetectMultiScale(gray_frame, 1.2, 10, new Size(50, 50), Size.Empty);
+            if (facesDetected != null && facesDetected.Count() == 1)
+                return facesDetected;
+            return facesDetected;
+        }
+    }
+}
+>>>>>>> d2a3e61e07ddda583fd1595639d24f8c933be42e
