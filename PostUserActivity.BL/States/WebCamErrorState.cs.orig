@@ -1,0 +1,77 @@
+<<<<<<< HEAD
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using PostUserActivity.Contracts.Forms;
+
+namespace PostUserActivity.BL.States
+{
+    public class WebCamErrorState : WebCamStateBase
+    {
+        private MainWindowController controller;
+
+        #region ctor
+
+        private WebCamErrorState()
+        {
+            this.State = ProcessStateType.Error;
+        }
+
+        public WebCamErrorState(MainWindowController controller):this()
+        {
+            this.controller = controller;
+        }
+
+        #endregion
+
+        #region Overrides of DeviceStateBase
+
+        public override DeviceStateBase ChangeState()
+        {
+            return this;
+        }
+
+        #endregion
+    }
+}
+=======
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using PostUserActivity.Contracts;
+using PostUserActivity.Contracts.Forms;
+
+namespace PostUserActivity.BL.States
+{
+    public class WebCamErrorState : WebCamStateBase
+    {
+        private MainWindowController controller;
+
+        #region ctor
+
+        private WebCamErrorState()
+        {
+            this.State = ProcessStateType.Error;
+        }
+
+        public WebCamErrorState(MainWindowController controller):this()
+        {
+            this.controller = controller;
+            ErrorsList = new List<AnalyzeImageResultType>();
+        }
+
+        #endregion
+
+        #region Overrides of DeviceStateBase
+
+        public override DeviceStateBase ChangeState()
+        {
+            return this;
+        }
+
+        #endregion
+    }
+}
+>>>>>>> 7ecaa4da3f257379dda0edb6affb29158c6253b0

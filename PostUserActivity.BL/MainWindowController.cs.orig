@@ -1,0 +1,1180 @@
+<<<<<<< HEAD
+﻿using System;
+using System.Collections.Generic;
+
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using CommonLib;
+using PostUserActivity.BL.States;
+using PostUserActivity.Contracts;
+using PostUserActivity.Contracts.Config;
+using PostUserActivity.Contracts.Forms;
+using PostUserActivity.Contracts.HWContracts;
+using PostUserActivity.Contracts.Network;
+
+using PostUserActivity.HW;
+using PostUserActivity.Python;
+
+namespace PostUserActivity
+{
+    /// <summary>
+    /// контроллер, который содержит основную логику работы приложения    
+    /// </summary>
+    public class MainWindowController : IMainWindowController
+    {
+        public const string SECRET_WORD = "SecretWord";
+        public const int MAX_RETRY_COUNT = 5;
+
+
+        #region fields & properties
+        
+        private IImageAnalyzer ImageAnalyzer;
+        private IDeviceConfiguration Configuration;
+        
+        public int ScanRetry { get; private set; }
+        public int CamRetry { get; private set; }
+
+        public int MaxReryCount
+        {
+            get { return MAX_RETRY_COUNT; }
+        }
+
+        private DeviceWorkFactory devicesFactory;
+        protected GetPictureDialogFactory ImgDlg;
+        
+        private IHWDeviceWork scanner;
+        private IHWDeviceWork webCam;
+
+        private object webCamLockObject = new object();
+        public AnalyzeCompletedEventArgs ScannerAnalyzeResult { get; private set; }
+        public AnalyzeCompletedEventArgs WebCamAnalyzeResult { get; private set; }
+
+
+        public DeviceStateBase ScannerState { get; private set; }
+        public DeviceStateBase WebCamState { get; private set; }
+
+        public string MediaDirectory { get; private set; }
+        public bool IsFinished { get; private set; }
+
+        private AnalyzeImgArgs TaskImageIdents;
+        
+        #endregion
+
+        #region HW events
+
+        public event EventHandler<ImageChangedEventArgs> ScannerImageChanged = (sender, e) => { };
+        //public event EventHandler<HWCompletedEventArgsEventArgs> ScannerCompleted = (sender, e) => { };
+        //public event EventHandler<HWErrorEventArgs> ScannerError = (sender, e) => { };
+        public event EventHandler<ImageChangedEventArgs> WebCamImageChanged = (sender, e) => { };
+        //public event EventHandler<HWCompletedEventArgsEventArgs> WebCamCompleted = (sender, e) => { };
+        //public event EventHandler<HWErrorEventArgs> WebCamError = (sender, e) => { };
+
+        #endregion
+
+        #region events
+
+        public event EventHandler<AnalyzeCompletedEventArgs> ScannerImageAnalyzeCompleted = (sender, e) => { };
+        public event EventHandler<AnalyzeCompletedEventArgs> WebCamImageAnalyzeCompleted = (sender, e) => { };
+
+        public event EventHandler<DoTakeRetryEvent> DoTakePhotoEvent = (sender, e) => { };
+        public event EventHandler<DoTakeRetryEvent> DoTakeScanEvent = (sender, e) => { };
+
+        public event EventHandler<AnalyzeCompletedEventArgs> WebCamProcessErrors = (sender, e) => { };
+        public event EventHandler<AnalyzeCompletedEventArgs> ScanProcessErrors = (sender, e) => { };
+
+        #endregion
+        public void DoFakePhoto(AnalyzeCompletedEventArgs e)
+        {
+            WebCamAnalyzeResult = e;
+        }
+        public int GetScanAttempts()
+        {
+            return ScanRetry;
+        }
+
+        public int GetCamAttempts()
+        {
+            return CamRetry;
+        }
+
+        private bool IsScanReadyToSend(int maxAttempts)
+        {
+            if (ScanRetry >= maxAttempts || (ScannerAnalyzeResult != null && !ScannerAnalyzeResult.ErrorsList.Any()))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        private bool IsCamReadyToSend(int maxAttempts)
+        {
+            if (CamRetry >= maxAttempts || (WebCamAnalyzeResult != null && !WebCamAnalyzeResult.ErrorsList.Any()))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public bool CanCreatePacket()
+        {
+            if (IsScanReadyToSend(MAX_RETRY_COUNT) && IsCamReadyToSend(MAX_RETRY_COUNT))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public bool CanScan()
+        {
+            if (ScanRetry >= MAX_RETRY_COUNT)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        public bool CanCam()
+        {
+            if (CamRetry >= MAX_RETRY_COUNT)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        #region ctor
+
+        private MainWindowController()
+        {
+        }
+
+        private MainWindowController(IDeviceConfiguration configuration)
+        {
+            this.Configuration = configuration;
+
+            ScannerState = new ScanStartState(this);
+            ScannerState = ScannerState.ChangeState();
+
+            WebCamState = new WebCamStartState(this);
+            WebCamState = WebCamState.ChangeState();
+
+            MediaDirectory = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "MediaFolder");
+            if (!Directory.Exists(MediaDirectory))
+            {
+                Directory.CreateDirectory(MediaDirectory);
+            }
+        }
+
+        public MainWindowController(AnalyzeImgArgs imgIdent, IDeviceConfiguration configuration) : this(configuration)
+        {
+            this.PythonPath = System.Configuration.ConfigurationManager.AppSettings["PythonDetectorPath"];
+
+            this.TaskImageIdents = imgIdent;
+
+            //this.ImageAnalyzer = new ImageAnalyzer(PythonPath);
+            //this.ImageAnalyzer.AnalyzeCompleted += ImageAnalyzer_AnalyzeCompleted;
+            //this.ImageAnalyzer.AnalyzeImage += ImageAnalyzer_AnalyzeImage;
+            
+            this.ImgDlg = new GetPictureDialogFactory(configuration);
+            
+            devicesFactory = new DeviceWorkFactory(configuration);
+
+            //  TODO: перенести создание в другое место
+            scanner = devicesFactory.GetDeviceWorkFactory(DeviceType.Scanner);
+            scanner.ImageChanged += Scanner_ImageChanged;
+
+            scanner.Error += Scanner_Error;
+            //scanner.Completed += Scanner_Completed;
+
+            webCam = devicesFactory.GetDeviceWorkFactory(DeviceType.WebCam);
+            webCam.ImageChanged += WebCam_ImageChanged;
+
+            //webCam.Error += WebCam_Error;
+            webCam.Completed += WebCam_Completed;
+        }
+
+        
+
+        private readonly string PythonPath;
+
+        #endregion
+
+        private void ImageAnalyzer_AnalyzeImage(object sender, AnalyzeCompletedEventArgs e)
+        {
+            switch (e.SourceDevice)
+            {
+                case DeviceType.WebCam:
+                    if (WebCamState.ErrorsList == null)
+                    {
+                        WebCamState.ErrorsList = new List<AnalyzeImageResultType>();
+                    }
+                    WebCamState.ErrorsList.AddRange(e.ErrorsList);
+                    WebCamState.ErrorsList = WebCamState.ErrorsList.Distinct().ToList();
+                    WebCamState.ErrorMessage = e.Message;
+                    //ChangeWebCamState();
+                    //WebCamProcessErrors(this, e);
+                    return;
+                case DeviceType.Scanner:
+                    ScannerState.ErrorsList = e.ErrorsList;
+                    ScannerState.ErrorMessage = e.Message;
+                    SaveImages(e);
+                    ChangeScannerState();                    
+                    ScanProcessErrors(this, e);
+                    return;
+            }
+        }
+
+        private void ImageAnalyzer_AnalyzeCompleted(object sender, AnalyzeCompletedEventArgs e)
+        {
+            //this.ImageAnalyzer = new ImageAnalyzer(PythonPath);
+            this.ImageAnalyzer.AnalyzeCompleted -= ImageAnalyzer_AnalyzeCompleted;
+            this.ImageAnalyzer.AnalyzeImage -= ImageAnalyzer_AnalyzeImage;
+            // мы нашли подходящее изображение
+            switch (e.SourceDevice)
+            {
+                case DeviceType.Scanner:
+                    if (ScannerAnalyzeResult == null)
+                    {
+                        ScannerAnalyzeResult = e;
+                        SaveImages(e);
+                        ChangeScannerState();
+                        ScannerImageAnalyzeCompleted(this, e);                        
+                    }
+                    else
+                    {
+                        //  TODO: add errors img to view
+                    }
+                    break;
+                case DeviceType.WebCam:
+                    if (WebCamAnalyzeResult == null)
+                    {
+                        lock (webCamLockObject)
+                        {
+                            if (WebCamAnalyzeResult == null)
+                            {
+                                webCam.Stop();
+                                WebCamAnalyzeResult = e;
+                                SaveImages(e);
+
+                                if (WebCamState.ErrorsList == null)
+                                {
+                                    WebCamState.ErrorsList = new List<AnalyzeImageResultType>();
+                                }
+
+                                if (e.ErrorsList != null)
+                                {
+                                    WebCamState.ErrorsList.AddRange(e.ErrorsList);
+                                    WebCamState.ErrorsList = WebCamState.ErrorsList.Distinct().ToList();
+                                }
+
+                                ChangeWebCamState();
+                                WebCamImageAnalyzeCompleted(this, e);
+                            }
+                        }
+                    }
+                    break;
+            }
+        }
+
+        private void SaveImages(AnalyzeCompletedEventArgs e)
+        {
+            //  save images
+            var dt = DateTime.Now;
+            var scFileNamePreview = string.Format("{4}Image_{0}_{1}_{2}_{3}.png", dt.ToString("yyyy-MM-dd_HH_mm_ss"), TaskImageIdents.WmfId, TaskImageIdents.IIN.GetHashCode(), "preview", e.SourceDevice);
+            var scFileNameFull = string.Format("{4}Image_{0}_{1}_{2}_{3}.png", dt.ToString("yyyy-MM-dd_HH_mm_ss"), TaskImageIdents.WmfId, TaskImageIdents.IIN.GetHashCode(), "fullframe", e.SourceDevice);
+            if (e.IsSuccess())
+            {
+                e.FullImage.Save(Path.Combine(MediaDirectory, scFileNameFull));
+                e.PreviewImage.Save(Path.Combine(MediaDirectory, scFileNamePreview));
+            }            
+        }
+
+
+        private void WebCam_Completed(object sender, HWCompletedEventArgsEventArgs e)
+        {
+            //  если произошло это действие, значит камера закончила работу            
+            var args = new ImageChangedEventArgs(e.Image, true);
+            if(GetFakeInitArg())
+            {
+                ImageAnalyzer.FakeAnalyze(args, DeviceType.WebCam);
+            }
+            else
+            {
+                ImageAnalyzer.Analyze(args, DeviceType.WebCam);        
+            }
+            
+        }
+
+        private void Scanner_Error(object sender, HWErrorEventArgs e)
+        {
+            var errors = new List<AnalyzeImageResultType>
+                            {
+                AnalyzeImageResultType.ScannerError
+            };
+            var eArgs = new AnalyzeCompletedEventArgs(DeviceType.Scanner, errors)
+            {
+                Message = e.Message
+            };
+
+            ScannerState.ErrorsList = errors;
+            ScannerState.ErrorMessage = e.Message;
+            ScannerState = ScannerState.ChangeState();
+
+            ScanProcessErrors(this, eArgs);
+        }
+
+        #region Implementation of IMainWindowController
+
+
+        public IDeviceConfiguration GetConfiguration()
+        {
+            return Configuration;
+        }
+        public bool GetFakeInitArg()
+        {
+            return this.TaskImageIdents.Fake;
+        }
+
+        public string GetUserName()
+        {
+            return this.TaskImageIdents.Username;
+        }
+
+        public string GetScannerName()
+        {
+            scanner.ImageChanged -= Scanner_ImageChanged;
+            scanner.Error -= Scanner_Error;
+            //scanner.Completed -= Scanner_Completed;
+
+
+            scanner = devicesFactory.GetDeviceWorkFactory(DeviceType.Scanner);
+            scanner.ImageChanged += Scanner_ImageChanged;
+            scanner.Error += Scanner_Error;
+            //scanner.Completed += Scanner_Completed;
+
+
+            return Configuration.GetDevice(DeviceType.Scanner).Name;
+        }
+
+        public string GetWebCamName()
+        {
+            webCam.ImageChanged -= WebCam_ImageChanged;
+            //webCam.Error -= WebCam_Error;
+            webCam.Completed -= WebCam_Completed;
+
+            webCam = devicesFactory.GetDeviceWorkFactory(DeviceType.WebCam);
+            webCam.ImageChanged += WebCam_ImageChanged;
+            //webCam.Error += WebCam_Error;
+            webCam.Completed += WebCam_Completed;
+
+            return Configuration.GetDevice(DeviceType.WebCam).Name;
+        }
+
+        public void TakeScan()
+        {
+            ImageAnalyzer = new ImageAnalyzer(PythonPath, (ConfigurationSettings)Configuration);            
+            ImageAnalyzer.AnalyzeCompleted += ImageAnalyzer_AnalyzeCompleted;
+            ImageAnalyzer.AnalyzeImage += ImageAnalyzer_AnalyzeImage;
+
+            ChangeScannerState(new ScanStartState(this, true));
+            ScannerAnalyzeResult = null;
+
+            ScanRetry++;
+            if (ScannerState.State != ProcessStateType.Error)
+            {
+                scanner.Start();
+            }
+            DoTakeScanEvent(this, new DoTakeRetryEvent(ScanRetry));
+        }
+        public void TakePhotoWithOutPython()
+        {
+            ImageAnalyzer = new ImageAnalyzer((ConfigurationSettings)Configuration);
+            ImageAnalyzer.AnalyzeCompleted += ImageAnalyzer_AnalyzeCompleted;
+            ImageAnalyzer.AnalyzeImage += ImageAnalyzer_AnalyzeImage;
+            ChangeWebCamState(new WebCamStartState(this, true));
+
+            WebCamAnalyzeResult = null;
+
+            CamRetry++;
+            if (WebCamState.State != ProcessStateType.Error)
+            {
+                webCam.Start();
+            }
+            DoTakePhotoEvent(this, new DoTakeRetryEvent(CamRetry));
+        }
+        public void TakePhoto()
+        {
+            ImageAnalyzer = new ImageAnalyzer(PythonPath, (ConfigurationSettings)Configuration);
+            ImageAnalyzer.AnalyzeCompleted += ImageAnalyzer_AnalyzeCompleted;
+            ImageAnalyzer.AnalyzeImage += ImageAnalyzer_AnalyzeImage;
+            
+            ChangeWebCamState(new WebCamStartState(this, true));
+
+            WebCamAnalyzeResult = null;
+
+            CamRetry++;
+            if (WebCamState.State != ProcessStateType.Error)
+            {
+                webCam.Start();
+            }
+            DoTakePhotoEvent(this, new DoTakeRetryEvent(CamRetry));
+        }
+
+        #endregion
+
+
+        #region events methods
+
+        private void Scanner_ImageChanged(object sender, ImageChangedEventArgs e)
+        {
+            ImageAnalyzer.Analyze(e, DeviceType.Scanner);
+            ScannerImageChanged(this, e);
+        }
+
+        private void WebCam_ImageChanged(object sender, ImageChangedEventArgs e)
+        {
+            if (GetFakeInitArg())
+            {
+                ImageAnalyzer.FakeAnalyze(e, DeviceType.WebCam);
+            }
+            else
+            {
+                ImageAnalyzer.Analyze(e, DeviceType.WebCam);
+            }
+            WebCamImageChanged(this, e);
+        }
+
+        #endregion
+
+
+        private string FullImgToBase64(AnalyzeCompletedEventArgs args)
+        {
+            string result = string.Empty;
+            if (args != null && args.FullImage!= null)
+            {
+                result = args.FullImage.ToBase64();
+            }
+
+            return result;
+        }
+
+        private string PreviewImgToBase64(AnalyzeCompletedEventArgs args)
+        {
+            string result = string.Empty;
+            if (args != null && args.PreviewImage != null)
+            {
+                result = args.PreviewImage.ToBase64();
+            }
+
+            return result;
+        }
+
+        public List<ArmDataPackage> CreatePackets()
+        {
+            var result = new List<ArmDataPackage>();
+            var timestamp = DateTime.Now;
+            var preview = new ArmDataPackage
+            {
+                Type = ArmDataPackageType.Preview,
+                Token = HashFunction.Get(SECRET_WORD),
+                UserName = TaskImageIdents.Username,
+                IIN = TaskImageIdents.IIN,
+                Timestamp = timestamp,
+                WFMId = TaskImageIdents.WmfId,
+                Comment = "empty comment",
+                CameraPicture = PreviewImgToBase64(WebCamAnalyzeResult),
+                ScanPicture = PreviewImgToBase64(ScannerAnalyzeResult)
+            };
+
+            var fullFrame = new ArmDataPackage
+            {
+                Type = ArmDataPackageType.FullFrame,
+                Token = HashFunction.Get(SECRET_WORD),
+                UserName = TaskImageIdents.Username,
+                IIN = TaskImageIdents.IIN,
+                Timestamp = timestamp,
+                WFMId = TaskImageIdents.WmfId,
+                Comment = "empty comment",
+                CameraPicture = FullImgToBase64(WebCamAnalyzeResult),
+                ScanPicture = FullImgToBase64(ScannerAnalyzeResult)
+            };
+
+            result.Add(preview);
+            result.Add(fullFrame);
+
+            
+            return result;
+
+        }
+
+        public DeviceStateBase GetScannerState()
+        {
+            return ScannerState;
+        }
+
+        public DeviceStateBase GetWebCamState()
+        {
+            return WebCamState;
+        }
+
+        public void ChangeWebCamState()
+        {
+            WebCamState = WebCamState.ChangeState();
+        }
+
+        public void ChangeScannerState()
+        {
+            ScannerState = ScannerState.ChangeState();
+        }
+
+        public void ChangeWebCamState(DeviceStateBase state)
+        {
+            WebCamState = state.ChangeState();
+        }
+
+        public void ChangeScannerState(DeviceStateBase state)
+        {
+            ScannerState = state.ChangeState();
+        }
+
+        #region not using
+
+        #region HW event handlers
+
+
+
+        //private void Scanner_Completed(object sender, HWCompletedEventArgsEventArgs e)
+        //{
+
+        //    ScannerCompleted(this, e);
+        //}
+
+        //private void WebCam_Error(object sender, HWErrorEventArgs e)
+        //{
+        //    WebCamError(this, e);            
+        //}
+
+
+
+        #endregion
+
+        #endregion
+
+
+        #region Implementation of IDisposable
+
+        public void Dispose()
+        {
+            if (webCam != null)
+            {
+                webCam.Dispose();
+            }
+            if (scanner != null)
+            {
+                scanner.Dispose();
+            }
+        }
+
+        #endregion
+    }
+}
+=======
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using CommonLib;
+using PostUserActivity.BL;
+using PostUserActivity.BL.States;
+using PostUserActivity.Contracts;
+using PostUserActivity.Contracts.Config;
+using PostUserActivity.Contracts.Forms;
+using PostUserActivity.Contracts.HWContracts;
+using PostUserActivity.Contracts.Network;
+
+using PostUserActivity.HW;
+using PostUserActivity.Python;
+
+namespace PostUserActivity
+{
+    /// <summary>
+    /// контроллер, который содержит основную логику работы приложения    
+    /// </summary>
+    public class MainWindowController : IMainWindowController
+    {        
+        public const int MAX_RETRY_COUNT = 5;
+
+
+        #region fields & properties
+
+        private readonly string PythonPath;
+
+        private IImageAnalyzer ImageAnalyzer;
+        private IDeviceConfiguration Configuration;
+
+        public int ScanRetry { get; private set; }
+        public int CamRetry { get; private set; }
+
+        public int MaxReryCount
+        {
+            get { return MAX_RETRY_COUNT; }
+        }
+
+        private DeviceWorkFactory devicesFactory;
+        protected GetPictureDialogFactory ImgDlg;
+
+        private IHWDeviceWork scanner;
+        private IHWDeviceWork webCam;
+
+        private IHWDeviceWork webCamPreview;
+
+        private object webCamLockObject = new object();
+        public AnalyzeCompletedEventArgs ScannerAnalyzeResult { get; private set; }
+        public AnalyzeCompletedEventArgs WebCamAnalyzeResult { get; private set; }
+
+
+        public DeviceStateBase ScannerState { get; private set; }
+        public DeviceStateBase WebCamState { get; private set; }
+
+        public string MediaDirectory { get; private set; }
+        public bool IsFinished { get; private set; }
+
+        private AnalyzeImgArgs TaskImageIdents;
+
+        #endregion
+
+        #region HW events
+
+        public event EventHandler<ImageChangedEventArgs> ScannerImageChanged = (sender, e) => { };
+        //public event EventHandler<HWCompletedEventArgsEventArgs> ScannerCompleted = (sender, e) => { };
+        //public event EventHandler<HWErrorEventArgs> ScannerError = (sender, e) => { };
+        public event EventHandler<ImageChangedEventArgs> WebCamImageChanged = (sender, e) => { };
+        //public event EventHandler<HWCompletedEventArgsEventArgs> WebCamCompleted = (sender, e) => { };
+        //public event EventHandler<HWErrorEventArgs> WebCamError = (sender, e) => { };
+
+        #endregion
+
+        #region events
+
+        public event EventHandler<AnalyzeCompletedEventArgs> ScannerImageAnalyzeCompleted = (sender, e) => { };
+        public event EventHandler<AnalyzeCompletedEventArgs> WebCamImageAnalyzeCompleted = (sender, e) => { };
+
+        public event EventHandler<DoTakeRetryEvent> DoTakePhotoEvent = (sender, e) => { };
+        public event EventHandler<DoTakeRetryEvent> DoTakeScanEvent = (sender, e) => { };
+
+        public event EventHandler<AnalyzeCompletedEventArgs> WebCamProcessErrors = (sender, e) => { };
+        public event EventHandler<AnalyzeCompletedEventArgs> ScanProcessErrors = (sender, e) => { };
+
+        #endregion
+
+        #region ctor
+
+        private MainWindowController()
+        {
+        }
+
+        private MainWindowController(IDeviceConfiguration configuration)
+        {
+            this.Configuration = configuration;
+
+            ScannerState = new ScanStartState(this);
+            ScannerState = ScannerState.ChangeState();
+
+            WebCamState = new WebCamStartState(this);
+            WebCamState = WebCamState.ChangeState();
+
+            MediaDirectory = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "MediaFolder");
+            if (!Directory.Exists(MediaDirectory))
+            {
+                Directory.CreateDirectory(MediaDirectory);
+            }
+        }
+
+        public MainWindowController(AnalyzeImgArgs imgIdent, IDeviceConfiguration configuration) : this(configuration)
+        {
+            this.PythonPath = System.Configuration.ConfigurationManager.AppSettings["PythonDetectorPath"];
+
+            this.TaskImageIdents = imgIdent;
+
+            //this.ImageAnalyzer = new ImageAnalyzer(PythonPath);
+            //this.ImageAnalyzer.AnalyzeCompleted += ImageAnalyzer_AnalyzeCompleted;
+            //this.ImageAnalyzer.AnalyzeImage += ImageAnalyzer_AnalyzeImage;
+
+            this.ImgDlg = new GetPictureDialogFactory(configuration);
+
+            devicesFactory = new DeviceWorkFactory(configuration);
+
+            //  TODO: перенести создание в другое место
+            scanner = devicesFactory.GetDeviceWorkFactory(DeviceType.Scanner);
+            scanner.ImageChanged += Scanner_ImageChanged;
+
+            scanner.Error += Scanner_Error;
+            //scanner.Completed += Scanner_Completed;
+
+            webCam = devicesFactory.GetDeviceWorkFactory(DeviceType.WebCam);
+            webCam.ImageChanged += WebCam_ImageChanged;
+
+            //webCam.Error += WebCam_Error;
+            webCam.Completed += WebCam_Completed;
+        }
+
+
+
+
+
+        #endregion
+
+
+
+        public int GetScanAttempts()
+        {
+            return ScanRetry;
+        }
+
+        public int GetCamAttempts()
+        {
+            return CamRetry;
+        }
+
+        private bool IsScanReadyToSend(int maxAttempts)
+        {
+            if (ScanRetry >= maxAttempts || (ScannerAnalyzeResult != null && !ScannerAnalyzeResult.ErrorsList.Any()))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        private bool IsCamReadyToSend(int maxAttempts)
+        {
+            if (CamRetry >= maxAttempts || (WebCamAnalyzeResult != null && !WebCamAnalyzeResult.ErrorsList.Any()))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public bool CanCreatePacket()
+        {
+            if (IsScanReadyToSend(MAX_RETRY_COUNT) && IsCamReadyToSend(MAX_RETRY_COUNT))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public bool CanScan()
+        {
+            if (ScanRetry >= MAX_RETRY_COUNT)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        public bool CanCam()
+        {
+            if (CamRetry >= MAX_RETRY_COUNT)
+            {
+                return false;
+            }
+            return true;
+        }
+
+
+
+        private void ImageAnalyzer_AnalyzeImage(object sender, AnalyzeCompletedEventArgs e)
+        {
+            switch (e.SourceDevice)
+            {
+                case DeviceType.WebCam:
+                    if (WebCamState.ErrorsList == null)
+                    {
+                        WebCamState.ErrorsList = new List<AnalyzeImageResultType>();
+                    }
+                    WebCamState.ErrorsList.AddRange(e.ErrorsList);
+                    WebCamState.ErrorsList = WebCamState.ErrorsList.Distinct().ToList();
+                    WebCamState.ErrorMessage = e.Message;
+                    //ChangeWebCamState();
+                    //WebCamProcessErrors(this, e);
+                    return;
+                case DeviceType.Scanner:
+                    ScannerState.ErrorsList = e.ErrorsList;
+                    ScannerState.ErrorMessage = e.Message;
+                    SaveImages(e);
+                    ChangeScannerState();
+                    ScanProcessErrors(this, e);
+                    return;
+            }
+        }
+
+        private void ImageAnalyzer_AnalyzeCompleted(object sender, AnalyzeCompletedEventArgs e)
+        {
+            //this.ImageAnalyzer = new ImageAnalyzer(PythonPath);
+            this.ImageAnalyzer.AnalyzeCompleted -= ImageAnalyzer_AnalyzeCompleted;
+            this.ImageAnalyzer.AnalyzeImage -= ImageAnalyzer_AnalyzeImage;
+            // мы нашли подходящее изображение
+            switch (e.SourceDevice)
+            {
+                case DeviceType.Scanner:
+                    if (ScannerAnalyzeResult == null)
+                    {
+                        ScannerAnalyzeResult = e;
+                        SaveImages(e);
+                        ChangeScannerState();
+                        ScannerImageAnalyzeCompleted(this, e);
+                    }
+                    else
+                    {
+                        //  TODO: add errors img to view
+                    }
+                    break;
+                case DeviceType.WebCam:
+                    if (WebCamAnalyzeResult == null)
+                    {
+                        lock (webCamLockObject)
+                        {
+                            if (WebCamAnalyzeResult == null)
+                            {
+                                webCam.Stop();
+                                WebCamAnalyzeResult = e;
+                                SaveImages(e);
+
+                                if (WebCamState.ErrorsList == null)
+                                {
+                                    WebCamState.ErrorsList = new List<AnalyzeImageResultType>();
+                                }
+
+                                if (e.ErrorsList != null)
+                                {
+                                    WebCamState.ErrorsList.AddRange(e.ErrorsList);
+                                    WebCamState.ErrorsList = WebCamState.ErrorsList.Distinct().ToList();
+                                }
+
+                                ChangeWebCamState();
+                                WebCamImageAnalyzeCompleted(this, e);
+                            }
+                        }
+                    }
+                    break;
+            }
+        }
+
+        private void SaveImages(AnalyzeCompletedEventArgs e)
+        {
+            //  save images
+            var dt = DateTime.Now;
+            var scFileNamePreview = string.Format("{4}Image_{0}_{1}_{2}_{3}.png", dt.ToString("yyyy-MM-dd_HH_mm_ss"), TaskImageIdents.WmfId, TaskImageIdents.IIN.GetHashCode(), "preview", e.SourceDevice);
+            var scFileNameFull = string.Format("{4}Image_{0}_{1}_{2}_{3}.png", dt.ToString("yyyy-MM-dd_HH_mm_ss"), TaskImageIdents.WmfId, TaskImageIdents.IIN.GetHashCode(), "fullframe", e.SourceDevice);
+            if (e.IsSuccess())
+            {
+                e.FullImage.Save(Path.Combine(MediaDirectory, scFileNameFull));
+                e.PreviewImage.Save(Path.Combine(MediaDirectory, scFileNamePreview));
+            }
+        }
+
+
+        private void WebCam_Completed(object sender, HWCompletedEventArgsEventArgs e)
+        {
+            //  если произошло это действие, значит камера закончила работу            
+            var args = new ImageChangedEventArgs(e.Image, true);
+            ImageAnalyzer.Analyze(args, DeviceType.WebCam);
+        }
+
+        private void Scanner_Error(object sender, HWErrorEventArgs e)
+        {
+            var errors = new List<AnalyzeImageResultType>
+                            {
+                AnalyzeImageResultType.ScannerError
+            };
+            var eArgs = new AnalyzeCompletedEventArgs(DeviceType.Scanner, errors)
+            {
+                Message = e.Message
+            };
+
+            ScannerState.ErrorsList = errors;
+            ScannerState.ErrorMessage = e.Message;
+            ScannerState = ScannerState.ChangeState();
+
+            ScanProcessErrors(this, eArgs);
+        }
+
+        #region Implementation of IMainWindowController
+
+
+        public IDeviceConfiguration GetConfiguration()
+        {
+            return Configuration;
+        }
+
+
+        public string GetUserName()
+        {
+            return this.TaskImageIdents.Username;
+        }
+
+        public string GetScannerName()
+        {
+            scanner.ImageChanged -= Scanner_ImageChanged;
+            scanner.Error -= Scanner_Error;
+            //scanner.Completed -= Scanner_Completed;
+
+
+            scanner = devicesFactory.GetDeviceWorkFactory(DeviceType.Scanner);
+            scanner.ImageChanged += Scanner_ImageChanged;
+            scanner.Error += Scanner_Error;
+            //scanner.Completed += Scanner_Completed;
+
+
+            return Configuration.GetDevice(DeviceType.Scanner).Name;
+        }
+
+        public string GetWebCamName()
+        {
+            webCam.ImageChanged -= WebCam_ImageChanged;
+            //webCam.Error -= WebCam_Error;
+            webCam.Completed -= WebCam_Completed;
+
+            webCam = devicesFactory.GetDeviceWorkFactory(DeviceType.WebCam);
+            webCam.ImageChanged += WebCam_ImageChanged;
+            //webCam.Error += WebCam_Error;
+            webCam.Completed += WebCam_Completed;
+
+            return Configuration.GetDevice(DeviceType.WebCam).Name;
+        }
+
+        public void TakeScan()
+        {
+            ImageAnalyzer = new ImageAnalyzer(PythonPath, (ConfigurationSettings)Configuration);
+            ImageAnalyzer.AnalyzeCompleted += ImageAnalyzer_AnalyzeCompleted;
+            ImageAnalyzer.AnalyzeImage += ImageAnalyzer_AnalyzeImage;
+
+            ChangeScannerState(new ScanStartState(this, true));
+            ScannerAnalyzeResult = null;
+
+            ScanRetry++;
+            if (ScannerState.State != ProcessStateType.Error)
+            {
+                scanner.Start();
+            }
+            DoTakeScanEvent(this, new DoTakeRetryEvent(ScanRetry));
+        }
+
+        public void TakePhoto()
+        {
+            ImageAnalyzer = new ImageAnalyzer(PythonPath, (ConfigurationSettings)Configuration);
+            ImageAnalyzer.AnalyzeCompleted += ImageAnalyzer_AnalyzeCompleted;
+            ImageAnalyzer.AnalyzeImage += ImageAnalyzer_AnalyzeImage;
+
+            ChangeWebCamState(new WebCamStartState(this, true));
+
+            WebCamAnalyzeResult = null;
+
+
+            //  stop
+            this.StopWebCamPreview();
+            CamRetry++;
+            if (WebCamState.State != ProcessStateType.Error)
+            {
+                webCam.Start();
+            }
+            // start {00:00:00.3330000}
+            
+            DoTakePhotoEvent(this, new DoTakeRetryEvent(CamRetry));
+        }
+
+        #endregion
+
+
+        #region events methods
+
+        private void Scanner_ImageChanged(object sender, ImageChangedEventArgs e)
+        {
+            ImageAnalyzer.Analyze(e, DeviceType.Scanner);
+            ScannerImageChanged(this, e);
+        }
+
+        private void WebCam_ImageChanged(object sender, ImageChangedEventArgs e)
+        {
+            ImageAnalyzer.Analyze(e, DeviceType.WebCam);
+            WebCamImageChanged(this, e);
+        }
+
+        #endregion
+
+
+        private string FullImgToBase64(AnalyzeCompletedEventArgs args)
+        {
+            string result = string.Empty;
+            if (args != null && args.FullImage != null)
+            {
+                result = args.FullImage.ToBase64();
+            }
+
+            return result;
+        }
+
+        private string PreviewImgToBase64(AnalyzeCompletedEventArgs args)
+        {
+            string result = string.Empty;
+            if (args != null && args.PreviewImage != null)
+            {
+                result = args.PreviewImage.ToBase64();
+            }
+
+            return result;
+        }
+
+        public List<ArmDataPackage> CreatePackets()
+        {
+            var result = new List<ArmDataPackage>();
+            var timestamp = DateTime.Now;
+            var preview = new ArmDataPackage
+            {
+                Type = ArmDataPackageType.Preview,
+                Token = HashFunction.Get(PrivateKey.SECRET_WORD),
+                UserName = TaskImageIdents.Username,
+                IIN = TaskImageIdents.IIN,
+                Timestamp = timestamp,
+                WFMId = TaskImageIdents.WmfId,
+                Comment = "empty comment",
+                CameraPicture = PreviewImgToBase64(WebCamAnalyzeResult),
+                ScanPicture = PreviewImgToBase64(ScannerAnalyzeResult)
+            };
+
+            var fullFrame = new ArmDataPackage
+            {
+                Type = ArmDataPackageType.FullFrame,
+                Token = HashFunction.Get(PrivateKey.SECRET_WORD),
+                UserName = TaskImageIdents.Username,
+                IIN = TaskImageIdents.IIN,
+                Timestamp = timestamp,
+                WFMId = TaskImageIdents.WmfId,
+                Comment = "empty comment",
+                CameraPicture = FullImgToBase64(WebCamAnalyzeResult),
+                ScanPicture = FullImgToBase64(ScannerAnalyzeResult)
+            };
+
+            result.Add(preview);
+            result.Add(fullFrame);
+
+
+            return result;
+
+        }
+
+        public DeviceStateBase GetScannerState()
+        {
+            return ScannerState;
+        }
+
+        public DeviceStateBase GetWebCamState()
+        {
+            return WebCamState;
+        }
+
+        public void ChangeWebCamState()
+        {
+            WebCamState = WebCamState.ChangeState();
+        }
+
+        public void ChangeScannerState()
+        {
+            ScannerState = ScannerState.ChangeState();
+        }
+
+        public void ChangeWebCamState(DeviceStateBase state)
+        {
+            WebCamState = state.ChangeState();
+        }
+
+        public void ChangeScannerState(DeviceStateBase state)
+        {
+            ScannerState = state.ChangeState();
+        }
+
+        public void StartWebCamPreview()
+        {
+            var camsFact = new DeviceSearchFactory(DeviceType.WebCam);
+            var cams =camsFact.GetDevices().ToList();
+
+            if (cams.Exists(p => p.Equals(this.Configuration.GetDevice(DeviceType.WebCam))))
+            {
+                webCamPreview = new WebCam(this.Configuration.GetDevice(DeviceType.WebCam));
+                webCamPreview.ImageChanged += WebCamPreview_ImageChanged;
+                webCamPreview.Start();
+            }
+        }
+
+        private void WebCamPreview_ImageChanged(object sender, ImageChangedEventArgs e)
+        {
+            WebCamImageChanged(sender, e);
+        }
+
+        public void StopWebCamPreview()
+        {
+            if (webCamPreview != null)
+            {
+                webCamPreview.ImageChanged -= WebCamPreview_ImageChanged;
+                webCamPreview.Stop();
+                webCamPreview.Dispose();
+            }
+        }
+
+        
+
+
+        #region not using
+
+        #region HW event handlers
+
+
+
+        //private void Scanner_Completed(object sender, HWCompletedEventArgsEventArgs e)
+        //{
+
+        //    ScannerCompleted(this, e);
+        //}
+
+        //private void WebCam_Error(object sender, HWErrorEventArgs e)
+        //{
+        //    WebCamError(this, e);            
+        //}
+
+
+
+        #endregion
+
+        #endregion
+
+
+        #region Implementation of IDisposable
+
+        public void Dispose()
+        {
+            if (webCam != null)
+            {
+                webCam.Dispose();
+            }
+            if (scanner != null)
+            {
+                scanner.Dispose();
+            }
+
+            if (webCamPreview != null)
+            {
+                //webCamPreview.ImageChanged -= WebCam_ImageChanged;
+                //webCamPreview.Stop();
+                webCamPreview.Dispose();
+            }
+        }
+
+        #endregion
+    }
+}
+>>>>>>> 434cd3e93caa4444ad3974f40af4f0c8203e7f74
