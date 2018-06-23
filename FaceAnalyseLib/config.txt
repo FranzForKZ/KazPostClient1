@@ -1,0 +1,16 @@
+classifiers classifiers.ini
+log log.txt
+detectionThr 0,9
+camRoi 0 0 1 1
+camMinEyesDist 0,05 0,05
+camMaxEyesDist 1 1
+scanRoi 0 0 1 1
+scanMinEyesDist 0,05 0,05
+scanMaxEyesDist 1 1
+yawThr 15
+pitchThr 15
+rollThr 15
+yawConf 0,5
+pitchConf 0,5
+rollConf 0,5
+eyesConf 0,5
