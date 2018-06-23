@@ -1,0 +1,121 @@
+<<<<<<< HEAD
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using CommonLib;
+using NLog;
+using PostUserActivity.Contracts.Config;
+using PostUserActivity.Contracts.Network;
+
+namespace PostUserActivity.Net
+{
+    public class NetSender
+    {
+        private ConfigurationSettings configuration;
+
+        private Logger logger;
+
+        public NetSender(IDeviceConfiguration configuration)
+        {
+            logger = LogManager.GetCurrentClassLogger();
+            this.configuration = (ConfigurationSettings) configuration;
+
+        }
+
+        public bool Send(List<ArmDataPackage> packets)
+        {
+            var isSended = false;
+            //  пытаемся отправить серверу, если нет - то сохраняем сообщения в папке для отправки
+            var req = new NetRequests();
+            foreach (var packet in packets)
+            {
+                var result = req.SendPackage(packet);
+                var jsonFileContent = Newtonsoft.Json.JsonConvert.SerializeObject(packet);
+
+                logger.Info("Sendind paket result: {0}{1}Paket Content: {2}", result.RequestResult, Environment.NewLine, jsonFileContent);
+                if (result.RequestResult != RequestResultType.Successful)
+                {
+                    //  save in folder
+                    
+                    var jsonFileName = string.Format("packet_{0}_{1}_{2}_{3}.json", packet.Timestamp.ToString("yyyy-MM-dd_HH_mm_ss"), packet.WFMId, packet.IIN.GetHashCode(), packet.Type);
+                    
+                    using (var writer = new System.IO.StreamWriter(Path.Combine(configuration.GetUploadPath(), jsonFileName)))
+                    {
+                        writer.Write(jsonFileContent);
+                    }
+                }
+                else
+                {
+                    isSended = true;
+                }
+            }
+
+            return isSended;
+        }
+    }
+}
+=======
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using CommonLib;
+using NLog;
+using PostUserActivity.Contracts.Config;
+using PostUserActivity.Contracts.Network;
+
+namespace PostUserActivity.Net
+{
+    public class NetSender 
+    {
+        private ConfigurationSettings configuration;
+
+        private Logger logger;
+
+        public const string fileNameTemplate = "packet_{0}_{1}_{2}_{3}.json";
+        public const string fileDateTemplate = "yyyy-MM-dd HH-mm-ss";
+
+        public NetSender(IDeviceConfiguration configuration)
+        {
+            logger = LogManager.GetCurrentClassLogger();
+            this.configuration = (ConfigurationSettings) configuration;
+
+        }
+
+        public TResponseResult<bool> Send(List<ArmDataPackage> packets)
+        {
+            RequestResultType requestResult = RequestResultType.ServerUnavailable;
+            var isSended = false;
+            //  пытаемся отправить серверу, если нет - то сохраняем сообщения в папке для отправки
+            var req = new NetRequests();
+            foreach (var packet in packets)
+            {
+                var result = req.SendPackage(packet);
+                var jsonFileContent = Newtonsoft.Json.JsonConvert.SerializeObject(packet);
+                requestResult = result.RequestResult;
+                logger.Info("Sendind paket result: ({0}){1}{2}Paket Content: {3}", (int)result.RequestResult, result.RequestResult, Environment.NewLine, jsonFileContent);
+                if (result.RequestResult != RequestResultType.Successful)
+                {
+                    //  save in folder
+                    logger.Error("Sendind paket exception: ({0}){1}{2}Paket Content: {3}", (int)result.RequestResult, result.RequestResult, Environment.NewLine, jsonFileContent);
+                    var jsonFileName = string.Format(fileNameTemplate, packet.Timestamp.ToString(fileDateTemplate), packet.WFMId, packet.IIN.GetHashCode(), packet.Type);
+                    
+                    using (var writer = new System.IO.StreamWriter(Path.Combine(configuration.GetUploadPath(), jsonFileName)))
+                    {
+                        writer.Write(jsonFileContent);
+                    }
+                }
+                else
+                {
+                    isSended = true;
+                }
+            }
+
+            return new TResponseResult<bool>(isSended, requestResult);
+        }
+    }
+}
+>>>>>>> 5df5deb32ee32f69a301c2880374657cd25818b6

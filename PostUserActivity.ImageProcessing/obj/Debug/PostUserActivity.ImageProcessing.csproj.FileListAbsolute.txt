@@ -1,0 +1,4 @@
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.ImageProcessing\bin\Debug\PostUserActivity.ImageProcessing.dll
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.ImageProcessing\bin\Debug\PostUserActivity.ImageProcessing.pdb
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.ImageProcessing\obj\Debug\PostUserActivity.ImageProcessing.dll
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.ImageProcessing\obj\Debug\PostUserActivity.ImageProcessing.pdb

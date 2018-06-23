@@ -1,0 +1,5 @@
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.ImageProcessing\bin\x86\Debug\PostUserActivity.ImageProcessing.dll
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.ImageProcessing\bin\x86\Debug\PostUserActivity.ImageProcessing.pdb
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.ImageProcessing\obj\x86\Debug\PostUserActivity.ImageProcessing.dll
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.ImageProcessing\obj\x86\Debug\PostUserActivity.ImageProcessing.pdb
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.ImageProcessing\obj\x86\Debug\PostUserActivity.ImageProcessing.csprojResolveAssemblyReference.cache

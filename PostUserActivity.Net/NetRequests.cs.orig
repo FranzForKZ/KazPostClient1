@@ -1,0 +1,181 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Configuration;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Text;
+using CommonLib;
+using Newtonsoft.Json;
+using PostUserActivity.Contracts.Network;
+using RestSharp;
+using RestSharp.Serializers;
+
+namespace PostUserActivity.Net
+{
+    public class NetRequests
+    {
+        static NetRequests()
+        {
+            BackEndServer = ConfigurationManager.AppSettings["BackEndServer"];
+        }
+
+        private static string BackEndServer;
+
+        public TResponseResult<ArmSettingsParams> SetAuthRequest(string username, string hash, string comment = "test")
+        {
+            TResponseResult<ArmSettingsParams> result;
+
+            var urlPart = "client/rest/auth";
+
+            var client = new RestClient(BackEndServer);
+            var request = GetRequest(urlPart, Method.PUT);
+            
+            request.AddBody(new
+            {
+                _comment = comment,
+                token = hash.ToBase64(),
+                username = username
+            });
+
+            var response = client.Execute(request);
+
+            //  небольшой хак
+            if (response.StatusCode == 0)
+            {
+<<<<<<< HEAD
+                return new TResponseResult<ArmSettingsParams>(null, RequestResultType.RequestedHostUnavailable);
+=======
+                return new TResponseResult<ArmSettingsParams>(null,RequestResultType.RequestedHostUnavailable);
+>>>>>>> dd07679f768c7aa476f9ad74bda7dd67b9d546af
+            }
+
+            result = new TResponseResult<ArmSettingsParams>(JsonConvert.DeserializeObject<ArmSettingsParams>(response.Content), (RequestResultType)(int)response.StatusCode);
+            return result;
+        }
+
+   
+        public ResponseResult RegisterArm(string uuid, string username, string comment = "test")
+        {
+            var urlPart = "/client/rest/reg";
+            var client = new RestClient(BackEndServer);
+            var request = GetRequest(urlPart, Method.PUT);
+            
+            request.AddBody(new
+            {
+                _comment = comment,
+                UUID = uuid,
+                username
+            });
+            
+            var response = client.Execute(request);
+
+            //  небольшой хак
+            if (response.StatusCode == 0)
+            {
+                return new ResponseResult(RequestResultType.RequestedHostUnavailable);
+            }
+
+            return new ResponseResult((RequestResultType)(int)response.StatusCode);
+        }
+
+
+        private RestRequest GetRequest(string urlPart, Method method)
+        {
+            var request = new RestRequest(urlPart, method);
+            request.AddHeader("Content-Type", "application/json");
+            request.JsonSerializer = NewtonsoftJsonSerializer.Default;
+            request.RequestFormat = DataFormat.Json;
+            return request;
+        }
+
+
+        public  ResponseResult SendPackage(ArmDataPackage data)
+        {
+            var urlPart = "/client/rest/preview";
+            switch (data.Type)
+            {
+                case ArmDataPackageType.FullFrame:
+                    urlPart = "/client/rest/fullframe";
+                    break;
+                case ArmDataPackageType.Preview:
+                    urlPart = "/client/rest/preview";
+                    break;
+            }
+            
+            var client = new RestClient(BackEndServer);
+            var request = GetRequest(urlPart, Method.PUT);            
+            request.AddBody(data);
+
+            var response = client.Execute(request);
+
+            //  небольшой хак
+            if (response.StatusCode == 0)
+            {
+                return new ResponseResult(RequestResultType.RequestedHostUnavailable);
+            }
+
+            return new ResponseResult((RequestResultType)(int)response.StatusCode);
+        }        
+    }
+
+
+    public class NewtonsoftJsonSerializer : ISerializer
+    {
+        private Newtonsoft.Json.JsonSerializer serializer;
+
+        public NewtonsoftJsonSerializer(Newtonsoft.Json.JsonSerializer serializer)
+        {
+            this.serializer = serializer;
+        }
+
+        public string ContentType
+        {
+            get { return "application/json"; } // Probably used for Serialization?
+            set { }
+        }
+
+        public string DateFormat { get; set; }
+
+        public string Namespace { get; set; }
+
+        public string RootElement { get; set; }
+
+        public string Serialize(object obj)
+        {
+            using (var stringWriter = new StringWriter())
+            {
+                using (var jsonTextWriter = new JsonTextWriter(stringWriter))
+                {
+                    serializer.Serialize(jsonTextWriter, obj);
+
+                    return stringWriter.ToString();
+                }
+            }
+        }
+
+        public T Deserialize<T>(RestSharp.IRestResponse response)
+        {
+            var content = response.Content;
+
+            using (var stringReader = new StringReader(content))
+            {
+                using (var jsonTextReader = new JsonTextReader(stringReader))
+                {
+                    return serializer.Deserialize<T>(jsonTextReader);
+                }
+            }
+        }
+
+        public static NewtonsoftJsonSerializer Default
+        {
+            get
+            {
+                return new NewtonsoftJsonSerializer(new Newtonsoft.Json.JsonSerializer()
+                {
+                    NullValueHandling = NullValueHandling.Ignore,
+                });
+            }
+        }
+    }
+}
