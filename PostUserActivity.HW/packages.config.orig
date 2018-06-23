@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<packages>
+  <package id="AForge" version="2.2.5" targetFramework="net35" />
+  <package id="AForge.Video" version="2.2.5" targetFramework="net35" />
+  <package id="AForge.Video.DirectShow" version="2.2.5" targetFramework="net35" />
+<<<<<<< HEAD
+  <package id="NLog" version="4.4.1" targetFramework="net35" />
+=======
+  <package id="NLog" version="4.4.2" targetFramework="net35" />
+>>>>>>> 4f91e20349a10f97c35b48e93c36ab08460a338c
+  <package id="Saraff.Twain" version="1.0.23.558" targetFramework="net35" />
+  <package id="Saraff.Twain.DS" version="1.0.1.542" targetFramework="net35" />
+  <package id="ZedGraph" version="5.1.7" targetFramework="net35" />
+</packages>

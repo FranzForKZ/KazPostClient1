@@ -1,0 +1,73 @@
+<<<<<<< HEAD
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using CommonLib;
+using PostUserActivity.Contracts.Config;
+using PostUserActivity.Contracts.HWContracts;
+
+namespace PostUserActivity.HW
+{
+    /// <summary>
+    /// фабрика для получения конретного экземпляра класса для работы с железками
+    /// </summary>
+    public class DeviceWorkFactory
+    {
+        private ConfigurationSchema config;
+        
+        public DeviceWorkFactory(IDeviceConfiguration config)
+        {
+            this.config = ((ConfigurationSettings)config).GetConfiguration();
+        }
+        
+        public IHWDeviceWork GetDeviceWorkFactory(DeviceType device)
+        {            
+            switch (device)
+            {
+                case DeviceType.Scanner:
+                    return new Scanner(config.ImagesOutputFolder, config.Scanner.Device);
+                case DeviceType.WebCam:
+                    return new WebCam(config.ArmParams.VideoRecordMaxDuration, config.WebCam.Device);
+            }
+            throw new Exception(string.Format("Can't find device for this device type: {0}", device));
+        }
+    }
+}
+=======
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using CommonLib;
+using PostUserActivity.Contracts.Config;
+using PostUserActivity.Contracts.HWContracts;
+
+namespace PostUserActivity.HW
+{
+    /// <summary>
+    /// фабрика для получения конретного экземпляра класса для работы с железками
+    /// </summary>
+    public class DeviceWorkFactory
+    {
+        private ConfigurationSchema config;
+        
+        public DeviceWorkFactory(IDeviceConfiguration config)
+        {
+            this.config = ((ConfigurationSettings)config).GetConfiguration();
+        }
+        
+        public IHWDeviceWork GetDeviceWorkFactory(DeviceType device)
+        {            
+            switch (device)
+            {
+                case DeviceType.Scanner:
+                    return new Scanner(config.Scanner.Device);
+                case DeviceType.WebCam:
+                    return new WebCam(config.ArmParams.VideoRecordMaxDuration, config.WebCam.Device);
+            }
+            throw new Exception(string.Format("Can't find device for this device type: {0}", device));
+        }
+    }
+}
+>>>>>>> 05a1ebb1e32b8e0b294f810afadd99b42e7d373c

@@ -1,0 +1,555 @@
+<<<<<<< HEAD
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using Saraff.Twain;
+using System.Drawing.Imaging;
+using System.IO;
+using PostUserActivity.Contracts.HWContracts;
+
+using NLog;
+
+
+namespace PostUserActivity.HW
+{
+    /// <summary>
+    /// класс содержит логику для работы со сканерами
+    /// </summary>
+    public class Scanner : IHWDeviceWork
+    {
+        #region implement IHWDeviceWork events
+
+        public event EventHandler<HWErrorEventArgs> Error = (sender, args) => { };
+
+        public void Stop()
+        {
+            //  do nothing
+        }
+
+        public event EventHandler<HWCompletedEventArgsEventArgs> Completed = (sender, args) => { };
+
+        /// <summary>
+        /// у сканера событие сработает 1 раз, когда будет отсканирована картинка
+        /// </summary>
+        public event EventHandler<ImageChangedEventArgs> ImageChanged = (sender, args) => { };
+
+        #endregion
+
+
+        Logger logger = LogManager.GetCurrentClassLogger();
+
+        private Twain32 twain;
+        private HWDeviceDesciption selectedScanner;
+        private string outputFolder;
+
+
+
+        public Scanner(string outputFolder, HWDeviceDesciption selectedScanner)
+        {
+            this.selectedScanner = selectedScanner;
+            this.outputFolder = outputFolder;
+            twain = new Twain32();
+            //  set twain settings
+            twain.DisableAfterAcquire = true;
+            twain.ShowUI = false;
+
+            // add event handlers
+            twain.EndXfer += endXferEventHandler;
+            twain.AcquireCompleted += acquireCompletedEventHandler;
+            twain.AcquireError += acquireErrorEventHandler;
+        }
+
+
+        /// <summary>
+        /// start scanning
+        /// </summary>
+        public void Start()
+        {
+            logger.Debug("Start");
+            try
+            {
+                if (!twain.OpenDSM())
+                {
+                    logger.Debug("Не могу найти сканер");
+                    Error(this, new HWErrorEventArgs("Не могу найти сканер"));
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex);
+                //  TODO: add logging
+                Error(this, new HWErrorEventArgs(ex.Message));
+                return;
+            }
+
+            twain.SourceIndex = int.Parse(selectedScanner.DeviceId);
+
+            try
+            {
+                if (!twain.OpenDataSource())
+                {
+                    logger.Debug("Не могу установить соединение со сканером");
+                    Error(this, new HWErrorEventArgs("Не могу установить соединение со сканером"));
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex);
+                //  TODO: add logging
+                Error(this, new HWErrorEventArgs(ex.Message));
+                return;
+            }
+
+            SetResolutions();
+            setPixelType();
+
+            try
+            {
+                twain.Acquire();
+            }
+            catch (Exception ex)
+            {
+                twain.CloseDSM();
+                twain.CloseDataSource();
+
+                logger.Error(ex);
+                //  TODO: add logging
+                Error(this, new HWErrorEventArgs(ex.Message));
+                return;
+            }
+
+        }
+
+        private void AcquireCompleted()
+        {
+            logger.Debug("AcquireCompleted()");
+            if (twain.ImageCount > 0)
+            {
+                var img = twain.GetImage(0);
+                ImageChanged(this, new ImageChangedEventArgs(img));
+                Completed(this, new HWCompletedEventArgsEventArgs(""));
+            }
+            else
+            {
+
+                Error(this, new HWErrorEventArgs("Ошибка сканирования"));
+            }
+            logger.Debug("AcquireCompleted() end");
+        }
+
+        private bool SetResolutions()
+        {
+            //var resolutions = twain.Capabilities.XResolution.Get();
+
+            //var resList= new List<int>();
+            //var resListo = new List<object>();
+
+            //for (var i = 0; i <resolutions.Count; i++)
+            //{
+            //    resList.Add(Convert.ToInt32(resolutions[i]));
+            //    resListo.Add(resolutions[i]);
+            //}
+
+            //if (resList.Contains(600))
+            //{
+            //    twain.Capabilities.XResolution.Set((float)600);
+            //    twain.Capabilities.YResolution.Set((float)600);
+            //}
+
+            //if (resolutions.Count > 0)
+            //{
+
+            //    twain.Capabilities.XResolution.Set((float)resolutions[resolutions.Count - 1]);
+            //    twain.Capabilities.YResolution.Set((float)resolutions[resolutions.Count - 1]);
+            //    return true;
+            //}
+            //else
+            //{
+            //    Error(this, new HWErrorEventArgs("Не могу установить разрешение для сканера"));
+            //    return false;
+            //}
+            return true;
+        }
+
+        private void setPixelType()
+        {
+            //var pixels = twain.Capabilities.PixelType.Get();
+
+            //var pixelType = TwPixelType.Gray;
+            //for (int i = 0; i < pixels.Count; i++)
+            //{
+            //    if (((TwPixelType)pixels[i]) == TwPixelType.Gray)
+            //    {
+            //        pixelType = TwPixelType.Gray;
+            //        break;
+            //    }
+            //    if (((TwPixelType)pixels[i]) == TwPixelType.BW)
+            //    {
+            //        pixelType = TwPixelType.BW;
+            //        break;
+            //    }
+            //}
+
+            //twain.Capabilities.PixelType.Set(pixelType);
+
+        }
+
+
+        #region even handlers
+
+        private void endXferEventHandler(object sender, Twain32.EndXferEventArgs eventsArgs)
+        {
+            logger.Debug("endXferEventHandler");
+            try
+            {
+                ImageChanged(this, new ImageChangedEventArgs((Image) eventsArgs.Image.Clone()));
+                eventsArgs.Image.Dispose();
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex);
+                //  TODO: add logger
+                Error(this, new HWErrorEventArgs("Ошибка сканирования"));
+            }
+
+            logger.Info("endXferEventHandler end");
+        }
+
+        private void acquireCompletedEventHandler(object sender, EventArgs eventsArgs)
+        {
+            logger.Info("acquireCompletedEventHandler");
+            twain.CloseDataSource();
+            twain.CloseDSM();
+            Completed(this, new HWCompletedEventArgsEventArgs(""));
+            logger.Info("acquireCompletedEventHandler end");
+        }
+
+        private void acquireErrorEventHandler(object sender, Twain32.AcquireErrorEventArgs eventsArgs)
+        {
+            logger.Info("acquireErrorEventHandler end");
+
+            twain.CloseDataSource();
+            twain.CloseDSM();
+            if (eventsArgs.Exception.ReturnCode == TwRC.Cancel)
+            {
+                AcquireCompleted();
+            }
+            else
+            {
+                var msg = string.Format("Ошибка сканирования: ReturnCode = {0}; ConditionCode = {1};", eventsArgs.Exception.ReturnCode, eventsArgs.Exception.ConditionCode);
+                Error(this, new HWErrorEventArgs(msg));
+            }
+
+            var inner = eventsArgs.Exception.InnerException == null ? "" : eventsArgs.Exception.InnerException.Message + eventsArgs.Exception.InnerException.StackTrace;
+            logger.Info(string.Format("ReturnCode: {0}, Error: {1}, InnerError: {2}", eventsArgs.Exception.ReturnCode, eventsArgs.Exception.Message + Environment.NewLine + eventsArgs.Exception.StackTrace, inner));
+
+            logger.Info("acquireErrorEventHandler end");
+
+        }
+
+        #endregion
+
+        #region IDisposable
+
+        public void Dispose()
+        {
+            try
+            {
+                if (twain != null)
+                {
+                    twain.CloseDataSource();
+                    twain.CloseDSM();
+                    twain.Dispose();
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex);
+            }
+            
+        }
+
+        #endregion
+
+    }
+}
+=======
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using Saraff.Twain;
+using System.Drawing.Imaging;
+using System.IO;
+using PostUserActivity.Contracts.HWContracts;
+
+using NLog;
+
+
+namespace PostUserActivity.HW
+{
+    /// <summary>
+    /// класс содержит логику для работы со сканерами
+    /// </summary>
+    public class Scanner : IHWDeviceWork
+    {
+        #region implement IHWDeviceWork events
+
+        public event EventHandler<HWErrorEventArgs> Error = (sender, args) => { };
+
+        public void Stop()
+        {
+            //  do nothing
+        }
+
+        public event EventHandler<HWCompletedEventArgsEventArgs> Completed = (sender, args) => { };
+
+        /// <summary>
+        /// у сканера событие сработает 1 раз, когда будет отсканирована картинка
+        /// </summary>
+        public event EventHandler<ImageChangedEventArgs> ImageChanged = (sender, args) => { };
+
+        #endregion
+
+
+        Logger logger = LogManager.GetCurrentClassLogger();
+
+        private Twain32 twain;
+        private HWDeviceDesciption selectedScanner;
+        
+        public Scanner(HWDeviceDesciption selectedScanner)
+        {
+            this.selectedScanner = selectedScanner;            
+            twain = new Twain32();
+            //  set twain settings
+            twain.DisableAfterAcquire = true;
+            twain.ShowUI = false;
+
+            // add event handlers
+            twain.EndXfer += endXferEventHandler;
+            twain.AcquireCompleted += acquireCompletedEventHandler;
+            twain.AcquireError += acquireErrorEventHandler;
+        }
+
+
+        /// <summary>
+        /// start scanning
+        /// </summary>
+        public void Start()
+        {
+            logger.Debug("Start");
+            try
+            {
+                if (!twain.OpenDSM())
+                {
+                    logger.Debug("Не могу найти сканер");
+                    Error(this, new HWErrorEventArgs("Не могу найти сканер"));
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex);
+                //  TODO: add logging
+                Error(this, new HWErrorEventArgs(ex.Message));
+                return;
+            }
+
+            twain.SourceIndex = int.Parse(selectedScanner.DeviceId);
+
+            try
+            {
+                if (!twain.OpenDataSource())
+                {
+                    logger.Debug("Не могу установить соединение со сканером");
+                    Error(this, new HWErrorEventArgs("Не могу установить соединение со сканером"));
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex);
+                //  TODO: add logging
+                Error(this, new HWErrorEventArgs(ex.Message));
+                return;
+            }
+
+            SetResolutions();
+            setPixelType();
+
+            try
+            {
+                twain.Acquire();
+            }
+            catch (Exception ex)
+            {
+                twain.CloseDSM();
+                twain.CloseDataSource();
+
+                logger.Error(ex);
+                //  TODO: add logging
+                Error(this, new HWErrorEventArgs(ex.Message));
+                return;
+            }
+
+        }
+
+        private void AcquireCompleted()
+        {
+            logger.Debug("AcquireCompleted()");
+            if (twain.ImageCount > 0)
+            {
+                var img = twain.GetImage(0);
+                ImageChanged(this, new ImageChangedEventArgs(img));
+                Completed(this, new HWCompletedEventArgsEventArgs(""));
+            }
+            else
+            {
+
+                Error(this, new HWErrorEventArgs("Ошибка сканирования"));
+            }
+            logger.Debug("AcquireCompleted() end");
+        }
+
+        private bool SetResolutions()
+        {
+            //var resolutions = twain.Capabilities.XResolution.Get();
+
+            //var resList= new List<int>();
+            //var resListo = new List<object>();
+
+            //for (var i = 0; i <resolutions.Count; i++)
+            //{
+            //    resList.Add(Convert.ToInt32(resolutions[i]));
+            //    resListo.Add(resolutions[i]);
+            //}
+
+            //if (resList.Contains(600))
+            //{
+            //    twain.Capabilities.XResolution.Set((float)600);
+            //    twain.Capabilities.YResolution.Set((float)600);
+            //}
+
+            //if (resolutions.Count > 0)
+            //{
+
+            //    twain.Capabilities.XResolution.Set((float)resolutions[resolutions.Count - 1]);
+            //    twain.Capabilities.YResolution.Set((float)resolutions[resolutions.Count - 1]);
+            //    return true;
+            //}
+            //else
+            //{
+            //    Error(this, new HWErrorEventArgs("Не могу установить разрешение для сканера"));
+            //    return false;
+            //}
+            return true;
+        }
+
+        private void setPixelType()
+        {
+            //var pixels = twain.Capabilities.PixelType.Get();
+
+            //var pixelType = TwPixelType.Gray;
+            //for (int i = 0; i < pixels.Count; i++)
+            //{
+            //    if (((TwPixelType)pixels[i]) == TwPixelType.Gray)
+            //    {
+            //        pixelType = TwPixelType.Gray;
+            //        break;
+            //    }
+            //    if (((TwPixelType)pixels[i]) == TwPixelType.BW)
+            //    {
+            //        pixelType = TwPixelType.BW;
+            //        break;
+            //    }
+            //}
+
+            //twain.Capabilities.PixelType.Set(pixelType);
+
+        }
+
+
+        #region even handlers
+
+        private void endXferEventHandler(object sender, Twain32.EndXferEventArgs eventsArgs)
+        {
+            logger.Debug("endXferEventHandler");
+            try
+            {
+                ImageChanged(this, new ImageChangedEventArgs((Image) eventsArgs.Image.Clone()));
+                eventsArgs.Image.Dispose();
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex);
+                //  TODO: add logger
+                Error(this, new HWErrorEventArgs("Ошибка сканирования"));
+            }
+
+            logger.Info("endXferEventHandler end");
+        }
+
+        private void acquireCompletedEventHandler(object sender, EventArgs eventsArgs)
+        {
+            logger.Info("acquireCompletedEventHandler");
+            twain.CloseDataSource();
+            twain.CloseDSM();
+            Completed(this, new HWCompletedEventArgsEventArgs(""));
+            logger.Info("acquireCompletedEventHandler end");
+        }
+
+        private void acquireErrorEventHandler(object sender, Twain32.AcquireErrorEventArgs eventsArgs)
+        {
+            logger.Info("acquireErrorEventHandler end");
+
+            twain.CloseDataSource();
+            twain.CloseDSM();
+            if (eventsArgs.Exception.ReturnCode == TwRC.Cancel)
+            {
+                AcquireCompleted();
+            }
+            else
+            {
+                var msg = string.Format("Ошибка сканирования: ReturnCode = {0}; ConditionCode = {1};", eventsArgs.Exception.ReturnCode, eventsArgs.Exception.ConditionCode);
+                Error(this, new HWErrorEventArgs(msg));
+            }
+
+            var inner = eventsArgs.Exception.InnerException == null ? "" : eventsArgs.Exception.InnerException.Message + eventsArgs.Exception.InnerException.StackTrace;
+            logger.Info(string.Format("ReturnCode: {0}, Error: {1}, InnerError: {2}", eventsArgs.Exception.ReturnCode, eventsArgs.Exception.Message + Environment.NewLine + eventsArgs.Exception.StackTrace, inner));
+
+            logger.Info("acquireErrorEventHandler end");
+
+        }
+
+        #endregion
+
+        #region IDisposable
+
+        public void Dispose()
+        {
+            try
+            {
+                if (twain != null)
+                {
+                    twain.CloseDataSource();
+                    twain.CloseDSM();
+                    twain.Dispose();
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex);
+            }
+            
+        }
+
+        #endregion
+
+    }
+}
+>>>>>>> 05a1ebb1e32b8e0b294f810afadd99b42e7d373c

@@ -1,0 +1,285 @@
+<<<<<<< HEAD
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+using AForge.Video.DirectShow;
+using AForge.Video;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
+using System.Threading;
+using AForge.Video.FFMPEG;
+using PostUserActivity.Contracts;
+using PostUserActivity.Contracts.HWContracts;
+using NLog;
+namespace PostUserActivity.HW
+{
+    /// <summary>
+    /// класс содержит логику для работы с Web камерами
+    /// </summary>
+    public class WebCam : IHWDeviceWork
+    {
+        Logger logger = LogManager.GetCurrentClassLogger();
+        private VideoCaptureDevice cameraDevice = null;
+
+        //private VideoFileWriter writer = null;
+
+        private long m_framesReceived = 0L;
+        private long totalFramesCount = 0L;
+
+        private int durationTimeSec = 0;
+
+        #region implement IHWDeviceWork events
+
+        /// <summary>
+        /// у камеры событие будет вызываться с каждым изменением фрейма
+        /// </summary>
+        public event EventHandler<ImageChangedEventArgs> ImageChanged = (sender, args) => { };
+        public event EventHandler<HWErrorEventArgs> Error = (sender, args) => { };
+        public void Stop()
+        {
+            cameraDevice.SignalToStop();
+        }
+
+        public event EventHandler<HWCompletedEventArgsEventArgs> Completed = (sender, args) => { };
+
+        #endregion
+
+        public WebCam(HWDeviceDesciption selectedCamera)
+        {
+            logger.Debug("WebCam Constructor");
+            cameraDevice = new VideoCaptureDevice(selectedCamera.DeviceId);
+            cameraDevice.NewFrame += CameraDevice_NewFrame;        
+            logger.Debug("WebCam Constractor end");
+        }
+
+        public WebCam(int durationTimeSec, HWDeviceDesciption selectedCamera):this(selectedCamera)
+        {
+            logger.Debug("WebCam Constructor");
+            //cameraDevice = new VideoCaptureDevice(selectedCamera.DeviceId);
+            //cameraDevice.NewFrame += CameraDevice_NewFrame;
+            this.durationTimeSec = durationTimeSec;
+            logger.Debug("WebCam Constractor end");
+        }
+
+
+        public void Start()
+        {
+            logger.Debug("WebCam Start");
+            //var width = cameraDevice.VideoCapabilities[0].FrameSize.Width;
+            //var height = cameraDevice.VideoCapabilities[0].FrameSize.Height;
+            var frameRate = cameraDevice.VideoCapabilities[0].AverageFrameRate;
+            totalFramesCount = Convert.ToInt64(durationTimeSec * frameRate);
+            m_framesReceived = 0L;
+            // create new video file
+            //writer = new VideoFileWriter();
+            //writer.Open(path, width, height, frameRate, VideoCodec.MPEG4);
+            cameraDevice.Start();
+            logger.Debug("WebCam Start END");
+        }
+
+
+        #region event handlers
+
+        private void CameraDevice_NewFrame(object sender, NewFrameEventArgs eventArgs)
+        {
+            logger.Debug("CameraDevice_NewFrame");
+            try
+            {
+                m_framesReceived++;
+                var img = (Image)eventArgs.Frame.Clone();// clone the bitmap        
+                //var imgCloned = (Image)img.Clone();
+                //writer.WriteVideoFrame(img);
+                if (m_framesReceived >= totalFramesCount && totalFramesCount != 0L)
+                {
+                    cameraDevice.SignalToStop();
+                    Thread.Sleep(1000);
+                    Completed(this, new HWCompletedEventArgsEventArgs(img, "Record stopped"));
+                    //writer.Close();
+                }
+                else
+                {
+                    ImageChanged(this, new ImageChangedEventArgs(img));
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex);
+                Error(this, new HWErrorEventArgs("Ошибка создания нового кадра"));
+
+            }
+
+            logger.Debug("CameraDevice_NewFrame end");
+            //  сохраним картинку
+            //imgCloned.Save(OutputFileName.Get(outputFolder, recordUID, startedDateTime, Convert.ToInt32(m_framesReceived), "jpg"), ImageFormat.Jpeg);
+        }
+
+        #endregion
+
+
+        #region IDisposable
+
+        public void Dispose()
+        {
+            if (cameraDevice != null && cameraDevice.IsRunning)
+            {
+                cameraDevice.Stop();
+            }
+
+            //if (writer != null && writer.IsOpen)
+            //{
+            //    writer.Close();
+            //}
+
+        }
+
+        #endregion
+
+
+    }
+}
+=======
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+using AForge.Video.DirectShow;
+using AForge.Video;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
+using System.Threading;
+using AForge.Video.FFMPEG;
+using PostUserActivity.Contracts;
+using PostUserActivity.Contracts.HWContracts;
+using NLog;
+namespace PostUserActivity.HW
+{
+    /// <summary>
+    /// класс содержит логику для работы с Web камерами
+    /// </summary>
+    public class WebCam : IHWDeviceWork
+    {
+        Logger logger = LogManager.GetCurrentClassLogger();
+        private VideoCaptureDevice cameraDevice = null;
+
+        //private VideoFileWriter writer = null;
+
+        private long m_framesReceived = 0L;
+        private long totalFramesCount = 0L;
+
+        private int durationTimeSec = 0;
+
+        #region implement IHWDeviceWork events
+
+        /// <summary>
+        /// у камеры событие будет вызываться с каждым изменением фрейма
+        /// </summary>
+        public event EventHandler<ImageChangedEventArgs> ImageChanged = (sender, args) => { };
+        public event EventHandler<HWErrorEventArgs> Error = (sender, args) => { };
+        public void Stop()
+        {
+            cameraDevice.SignalToStop();
+        }
+
+        public event EventHandler<HWCompletedEventArgsEventArgs> Completed = (sender, args) => { };
+
+        #endregion
+
+        public WebCam(HWDeviceDesciption selectedCamera)
+        {
+            logger.Debug("WebCam Constructor");
+            cameraDevice = new VideoCaptureDevice(selectedCamera.DeviceId);
+            cameraDevice.NewFrame += CameraDevice_NewFrame;        
+            logger.Debug("WebCam Constractor end");
+        }
+
+        public WebCam(int durationTimeSec, HWDeviceDesciption selectedCamera):this(selectedCamera)
+        {
+            logger.Debug("WebCam Constructor");
+            //cameraDevice = new VideoCaptureDevice(selectedCamera.DeviceId);
+            //cameraDevice.NewFrame += CameraDevice_NewFrame;
+            this.durationTimeSec = durationTimeSec;
+            logger.Debug("WebCam Constractor end");
+        }
+
+
+        public void Start()
+        {
+            logger.Debug("WebCam Start");
+            //var width = cameraDevice.VideoCapabilities[0].FrameSize.Width;
+            //var height = cameraDevice.VideoCapabilities[0].FrameSize.Height;
+            var frameRate = cameraDevice.VideoCapabilities[0].AverageFrameRate;
+            totalFramesCount = Convert.ToInt64(durationTimeSec * frameRate);  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            m_framesReceived = 0L;
+            // create new video file
+            //writer = new VideoFileWriter();
+            //writer.Open(path, width, height, frameRate, VideoCodec.MPEG4);
+            cameraDevice.Start();
+            logger.Debug("WebCam Start END");
+        }
+
+
+        #region event handlers
+
+        private void CameraDevice_NewFrame(object sender, NewFrameEventArgs eventArgs)
+        {
+            logger.Debug("CameraDevice_NewFrame");
+            try
+            {
+                m_framesReceived++;
+                var img = (Image)eventArgs.Frame.Clone();// clone the bitmap        
+                //var imgCloned = (Image)img.Clone();
+                //writer.WriteVideoFrame(img);
+                if (m_framesReceived >= totalFramesCount && totalFramesCount != 0L)
+                {
+                    cameraDevice.SignalToStop();
+                    Thread.Sleep(1000);
+                    Completed(this, new HWCompletedEventArgsEventArgs(img, "Record stopped"));
+                    //writer.Close();
+                }
+                else
+                {
+                    ImageChanged(this, new ImageChangedEventArgs(img));
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex);
+                Error(this, new HWErrorEventArgs("Ошибка создания нового кадра"));
+
+            }
+
+            logger.Debug("CameraDevice_NewFrame end");
+            //  сохраним картинку
+            //imgCloned.Save(OutputFileName.Get(outputFolder, recordUID, startedDateTime, Convert.ToInt32(m_framesReceived), "jpg"), ImageFormat.Jpeg);
+        }
+
+        #endregion
+
+
+        #region IDisposable
+
+        public void Dispose()
+        {
+            if (cameraDevice != null && cameraDevice.IsRunning)
+            {
+                cameraDevice.Stop();
+            }
+
+            //if (writer != null && writer.IsOpen)
+            //{
+            //    writer.Close();
+            //}
+
+        }
+
+        #endregion
+
+
+    }
+}
+>>>>>>> 05ef9f618b275609666e14670a2ac4b3228bd8c5
