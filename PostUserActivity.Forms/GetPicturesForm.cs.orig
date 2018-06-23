@@ -1,0 +1,257 @@
+<<<<<<< HEAD
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Windows.Forms;
+using CommonLib;
+using PostUserActivity.Contracts.Config;
+using PostUserActivity.Contracts.Forms;
+using PostUserActivity.Contracts.HWContracts;
+using PostUserActivity.HW;
+
+namespace PostUserActivity.Forms
+{
+    public partial class GetPicturesForm : Form
+    {
+        private GetPicturesForm()
+        {
+            InitializeComponent();
+        }
+
+        private IHWSearcher hwSearcher;
+        private IDeviceConfiguration config;
+        //private DeviceType device;
+        private HWDeviceDesciption savedDevice;
+
+        private IHWDeviceWork deviceWorker;
+
+        private DeviceWorkFactory devicesFactory;
+
+        private IPictureDialog pictureDialog;
+
+
+
+        public GetPicturesForm(IPictureDialog pictureDialog) : this()
+        {
+            hwSearcher = new DeviceSearchFactory(pictureDialog.GetDeviceType());            
+            devicesFactory = new DeviceWorkFactory(pictureDialog.GetDeviceConfiguration());
+            config = pictureDialog.GetDeviceConfiguration();
+            this.Text = pictureDialog.GetHeaderText();
+            this.GetImage.Text = pictureDialog.GetButtonText();
+            this.pictureDialog = pictureDialog;
+        }
+
+
+        private void GetPicturesForm_Load(object sender, EventArgs e)
+        {
+            savedDevice = config.GetDevice(pictureDialog.GetDeviceType());
+            deviceWorker = devicesFactory.GetDeviceWorkFactory(pictureDialog.GetDeviceType());
+
+            deviceWorker.Completed += DeviceWorker_Completed;
+            deviceWorker.Error += DeviceWorker_Error;
+            deviceWorker.ImageChanged += DeviceWorker_ImageChanged;
+
+        }
+
+        private void DeviceWorker_ImageChanged(object sender, ImageChangedEventArgs e)
+        {
+            this.Picture.Image = ImageResize.Resize(e.Img, this.Picture.Width, this.Picture.Height);
+        }
+
+        private void DeviceWorker_Error(object sender, HWErrorEventArgs e)
+        {
+            EnableCloseButton();
+            MessageBox.Show(e.Message);
+        }
+
+        private void DeviceWorker_Completed(object sender, HWCompletedEventArgsEventArgs e)
+        {
+            var images = e.Images;
+            EnableCloseButton();            
+        }
+
+
+        private void EnableCloseButton()
+        {
+            if (CloseForm.InvokeRequired)
+            {
+                CloseForm.Invoke(new MethodInvoker(delegate { CloseForm.Enabled = true; }));
+            }
+            else { CloseForm.Enabled = true; }
+        }
+
+        private void GetImage_Click(object sender, EventArgs e)
+        {
+            deviceWorker.Start();            
+            this.CloseForm.Enabled = false;
+        }
+
+        private void GetPicturesForm_Shown(object sender, EventArgs e)
+        {
+            //  проверка, что у нас в системе установлено сохраненное в конфиге оборудование
+            var devices = hwSearcher.GetDevices().ToList();
+            
+            if (!devices.Exists(p => p.Equals(savedDevice)))
+            {
+                if (string.IsNullOrEmpty(savedDevice.Name))
+                {
+                    
+                    MessageBox.Show(this.pictureDialog.GetEmptyConfigErrorText());
+                }
+                else
+                {
+                    MessageBox.Show(string.Format("Проверьте настройки подключения устройства {0}. {0} не найдено", savedDevice.Name));
+                }
+                
+                //GetImage.Text = "Закрыть";
+                GetImage.Enabled = false;
+            }
+        }
+
+        private void GetPicturesForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (deviceWorker != null)
+            {
+                deviceWorker.Dispose();
+            }
+        }
+
+        private void CloseForm_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+    }
+}
+=======
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Windows.Forms;
+using PostUserActivity.Contracts.Config;
+using PostUserActivity.Contracts.Forms;
+using PostUserActivity.Contracts.HWContracts;
+using PostUserActivity.HW;
+
+namespace PostUserActivity.Forms
+{
+    public partial class GetPicturesForm : Form
+    {
+        private GetPicturesForm()
+        {
+            InitializeComponent();
+        }
+
+        private IHWSearcher hwSearcher;
+        private IDeviceConfiguration config;
+        //private DeviceType device;
+        private HWDeviceDesciption savedDevice;
+
+        private IHWDeviceWork deviceWorker;
+
+        private DeviceWorkFactory devicesFactory;
+
+        private IPictureDialog pictureDialog;
+
+
+
+        public GetPicturesForm(IPictureDialog pictureDialog) : this()
+        {
+            hwSearcher = new DeviceSearchFactory(pictureDialog.GetDeviceType());            
+            devicesFactory = new DeviceWorkFactory(pictureDialog.GetDeviceConfiguration());
+            config = pictureDialog.GetDeviceConfiguration();
+            this.Text = pictureDialog.GetHeaderText();
+            this.GetImage.Text = pictureDialog.GetButtonText();
+            this.pictureDialog = pictureDialog;
+        }
+
+
+        private void GetPicturesForm_Load(object sender, EventArgs e)
+        {
+            savedDevice = config.GetDevice(pictureDialog.GetDeviceType());
+            deviceWorker = devicesFactory.GetDeviceWorkFactory(pictureDialog.GetDeviceType());
+
+            deviceWorker.Completed += DeviceWorker_Completed;
+            deviceWorker.Error += DeviceWorker_Error;
+            deviceWorker.ImageChanged += DeviceWorker_ImageChanged;
+
+        }
+
+        private void DeviceWorker_ImageChanged(object sender, ImageChangedEventArgs e)
+        {
+            EnableCloseButton();
+            this.Picture.Image = e.Img;
+        }
+
+        private void DeviceWorker_Error(object sender, HWErrorEventArgs e)
+        {
+            EnableCloseButton();
+            MessageBox.Show(e.Message);
+        }
+
+        private void DeviceWorker_Completed(object sender, HWCompletedEventArgsEventArgs e)
+        {
+            EnableCloseButton();
+            MessageBox.Show("Завершено");
+        }
+
+
+        private void EnableCloseButton()
+        {
+            if (CloseForm.InvokeRequired)
+            {
+                CloseForm.Invoke(new MethodInvoker(delegate { CloseForm.Enabled = true; }));
+            }
+            else { CloseForm.Enabled = true; }
+        }
+
+        private void GetImage_Click(object sender, EventArgs e)
+        {
+            deviceWorker.Start();            
+            this.CloseForm.Enabled = false;
+        }
+
+        private void GetPicturesForm_Shown(object sender, EventArgs e)
+        {
+            //  проверка, что у нас в системе установлено сохраненное в конфиге оборудование
+            var devices = hwSearcher.GetDevices().ToList();
+            
+            if (!devices.Exists(p => p.Equals(savedDevice)))
+            {
+                if (string.IsNullOrEmpty(savedDevice.Name))
+                {
+                    
+                    MessageBox.Show(this.pictureDialog.GetEmptyConfigErrorText());
+                }
+                else
+                {
+                    MessageBox.Show(string.Format("Проверьте настройки подключения устройства {0}. {0} не найдено", savedDevice.Name));
+                }
+                
+                //GetImage.Text = "Закрыть";
+                GetImage.Enabled = false;
+            }
+        }
+
+        private void GetPicturesForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (deviceWorker != null)
+            {
+                deviceWorker.Dispose();
+            }
+        }
+
+        private void CloseForm_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+    }
+}
+>>>>>>> 673eed91c422a29b27ade8444d8de23180f37ece
