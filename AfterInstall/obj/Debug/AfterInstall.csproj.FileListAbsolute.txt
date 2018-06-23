@@ -1,0 +1,5 @@
+C:\Users\abelov\Source\KazPostArm\AfterInstall\bin\Debug\AfterInstall.exe
+C:\Users\abelov\Source\KazPostArm\AfterInstall\bin\Debug\AfterInstall.pdb
+C:\Users\abelov\Source\KazPostArm\AfterInstall\obj\Debug\AfterInstall.exe
+C:\Users\abelov\Source\KazPostArm\AfterInstall\obj\Debug\AfterInstall.pdb
+C:\Users\abelov\Source\KazPostArm\AfterInstall\obj\Debug\AfterInstall.csprojResolveAssemblyReference.cache

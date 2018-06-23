@@ -1,0 +1,5 @@
+C:\Users\abelov\Source\KazPostArm\ArmanSrc\Arm_Project\bin\Debug\Arm_Project.exe.config
+C:\Users\abelov\Source\KazPostArm\ArmanSrc\Arm_Project\obj\Debug\Arm_Project.csprojResolveAssemblyReference.cache
+C:\Users\abelov\Source\KazPostArm\ArmanSrc\Arm_Project\obj\Debug\Arm_Project.FormMain.resources
+C:\Users\abelov\Source\KazPostArm\ArmanSrc\Arm_Project\obj\Debug\Arm_Project.Properties.Resources.resources
+C:\Users\abelov\Source\KazPostArm\ArmanSrc\Arm_Project\obj\Debug\Arm_Project.csproj.GenerateResource.Cache
