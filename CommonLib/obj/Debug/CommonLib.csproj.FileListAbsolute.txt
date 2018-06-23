@@ -1,0 +1,15 @@
+C:\Users\abelov\Source\KazPostArm\CommonLib\bin\Debug\CommonLib.dll
+C:\Users\abelov\Source\KazPostArm\CommonLib\bin\Debug\CommonLib.pdb
+C:\Users\abelov\Source\KazPostArm\CommonLib\bin\Debug\ICSharpCode.SharpZipLib.dll
+C:\Users\abelov\Source\KazPostArm\CommonLib\bin\Debug\NLog.dll
+C:\Users\abelov\Source\KazPostArm\CommonLib\bin\Debug\PostUserActivity.Contracts.dll
+C:\Users\abelov\Source\KazPostArm\CommonLib\bin\Debug\YamlDotNet.dll
+C:\Users\abelov\Source\KazPostArm\CommonLib\bin\Debug\Newtonsoft.Json.dll
+C:\Users\abelov\Source\KazPostArm\CommonLib\bin\Debug\PostUserActivity.Contracts.pdb
+C:\Users\abelov\Source\KazPostArm\CommonLib\bin\Debug\NLog.xml
+C:\Users\abelov\Source\KazPostArm\CommonLib\bin\Debug\YamlDotNet.pdb
+C:\Users\abelov\Source\KazPostArm\CommonLib\bin\Debug\YamlDotNet.xml
+C:\Users\abelov\Source\KazPostArm\CommonLib\bin\Debug\Newtonsoft.Json.xml
+C:\Users\abelov\Source\KazPostArm\CommonLib\obj\Debug\CommonLib.csprojResolveAssemblyReference.cache
+C:\Users\abelov\Source\KazPostArm\CommonLib\obj\Debug\CommonLib.dll
+C:\Users\abelov\Source\KazPostArm\CommonLib\obj\Debug\CommonLib.pdb
