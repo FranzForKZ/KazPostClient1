@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type='text/xsl' href='_UpgradeReport_Files/UpgradeReport.xslt'?><UpgradeLog>
+<Properties><Property Name="Solution" Value="PostUserActivity">
+</Property><Property Name="Solution File" Value="C:\Users\abelov\Source\KazPostArm\PostUserActivity.sln">
+</Property><Property Name="Date" Value="11 мая 2017 г.">
+</Property><Property Name="Time" Value="16:59">
+</Property></Properties><Event ErrorLevel="0" Project="KazPostARM" Source="PostUserActivity\KazPostARM.csproj" Description="The project file does not require conversion.">
+</Event><Event ErrorLevel="3" Project="KazPostARM" Source="PostUserActivity\KazPostARM.csproj" Description="No Conversion Required">
+</Event><Event ErrorLevel="0" Project="PostUserActivity.HW" Source="PostUserActivity.HW\PostUserActivity.HW.csproj" Description="The project file does not require conversion.">
+</Event><Event ErrorLevel="3" Project="PostUserActivity.HW" Source="PostUserActivity.HW\PostUserActivity.HW.csproj" Description="No Conversion Required">
+</Event><Event ErrorLevel="0" Project="CommonLib" Source="CommonLib\CommonLib.csproj" Description="The project file does not require conversion.">
+</Event><Event ErrorLevel="3" Project="CommonLib" Source="CommonLib\CommonLib.csproj" Description="No Conversion Required">
+</Event><Event ErrorLevel="0" Project="PostUserActivity.UnitTests" Source="Tests\PostUserActivity.UnitTests\PostUserActivity.UnitTests.csproj" Description="Project converted successfully">
+</Event><Event ErrorLevel="3" Project="PostUserActivity.UnitTests" Source="Tests\PostUserActivity.UnitTests\PostUserActivity.UnitTests.csproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="PostUserActivity.Net" Source="PostUserActivity.Net\PostUserActivity.Net.csproj" Description="The project file does not require conversion.">
+</Event><Event ErrorLevel="3" Project="PostUserActivity.Net" Source="PostUserActivity.Net\PostUserActivity.Net.csproj" Description="No Conversion Required">
+</Event><Event ErrorLevel="0" Project="PostUserActivity.Forms" Source="PostUserActivity.Forms\PostUserActivity.Forms.csproj" Description="The project file does not require conversion.">
+</Event><Event ErrorLevel="3" Project="PostUserActivity.Forms" Source="PostUserActivity.Forms\PostUserActivity.Forms.csproj" Description="No Conversion Required">
+</Event><Event ErrorLevel="0" Project="PostUserActivity.Contracts" Source="PostUserActivity.Contracts\PostUserActivity.Contracts.csproj" Description="The project file does not require conversion.">
+</Event><Event ErrorLevel="3" Project="PostUserActivity.Contracts" Source="PostUserActivity.Contracts\PostUserActivity.Contracts.csproj" Description="No Conversion Required">
+</Event><Event ErrorLevel="0" Project="PostUserActivity.BL" Source="PostUserActivity.BL\PostUserActivity.BL.csproj" Description="The project file does not require conversion.">
+</Event><Event ErrorLevel="3" Project="PostUserActivity.BL" Source="PostUserActivity.BL\PostUserActivity.BL.csproj" Description="No Conversion Required">
+</Event><Event ErrorLevel="0" Project="PostUserActivity.ImageProcessing" Source="PostUserActivity.ImageProcessing\PostUserActivity.ImageProcessing.csproj" Description="The project file does not require conversion.">
+</Event><Event ErrorLevel="3" Project="PostUserActivity.ImageProcessing" Source="PostUserActivity.ImageProcessing\PostUserActivity.ImageProcessing.csproj" Description="No Conversion Required">
+</Event><Event ErrorLevel="0" Project="PostUserActivity.Tevian" Source="PostUserActivity.Tevian\PostUserActivity.Tevian.csproj" Description="The project file does not require conversion.">
+</Event><Event ErrorLevel="3" Project="PostUserActivity.Tevian" Source="PostUserActivity.Tevian\PostUserActivity.Tevian.csproj" Description="No Conversion Required">
+</Event><Event ErrorLevel="0" Project="RebootDialog" Source="RebootDialog\RebootDialog.csproj" Description="The project file does not require conversion.">
+</Event><Event ErrorLevel="3" Project="RebootDialog" Source="RebootDialog\RebootDialog.csproj" Description="No Conversion Required">
+</Event><Event ErrorLevel="0" Project="Saraff.Twain" Source="..\..\..\..\saraff\Saraff.Twain.csproj" Description="The project file does not require conversion.">
+</Event><Event ErrorLevel="3" Project="Saraff.Twain" Source="..\..\..\..\saraff\Saraff.Twain.csproj" Description="No Conversion Required">
+</Event><Event ErrorLevel="0" Project="" Source="PostUserActivity.sln" Description="Solution converted successfully">
+</Event><Event ErrorLevel="3" Project="" Source="PostUserActivity.sln" Description="Converted">
+</Event><Event ErrorLevel="0" Project="PostUserActivity.UnitTests" Source="Tests\PostUserActivity.UnitTests\App.config" Description="File converted successfully. All &lt;supportedRuntime&gt; and &lt;requiredRuntime&gt; tags were removed to enable the project to build and run with Visual Studio 2005.">
+</Event><Event ErrorLevel="3" Project="PostUserActivity.UnitTests" Source="Tests\PostUserActivity.UnitTests\App.config" Description="Converted">
+</Event></UpgradeLog>

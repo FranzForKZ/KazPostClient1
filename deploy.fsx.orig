@@ -1,0 +1,168 @@
+<<<<<<< HEAD
+// include Fake lib
+#r "packages/FAKE/tools/FakeLib.dll"
+
+open Fake
+
+// Default target
+Target "Default" (fun _ -> trace "Hello World from FAKE")
+
+
+let deployBaseDir = __SOURCE_DIRECTORY__ + "/deploy/"
+let deployDir = deployBaseDir + "KazPostARM/"
+
+Target "Clean" (fun _ -> 
+    CleanDirs [ deployBaseDir ]
+)
+
+Target "BuildApp" (fun _ -> 
+    trace "BuildApp start"    
+    let prDir = __SOURCE_DIRECTORY__ + "/PostUserActivity/PostUserActivity.csproj"    
+    !!prDir
+    |> MSBuildRelease deployDir "Build"    
+    //|> MSBuildDebug buildDir "Build"
+    |> Log "AppBuild-Output: "
+    trace "BuildApp stop")
+
+
+=======
+// include Fake lib
+#r "packages/FAKE/tools/FakeLib.dll"
+
+open Fake
+open System
+open System.IO
+open Microsoft.Web
+// Default target
+Target "Default" (fun _ -> trace "Hello World from FAKE")
+
+
+let deployBaseDir = __SOURCE_DIRECTORY__ + "/deploy/"
+let deployDir = deployBaseDir + "KazPostARM/"
+
+let setupFileName = deployBaseDir + "KazPostARM Setup v0.1.exe"
+
+
+let before (delimiter:string) (s:string) = s.Substring(0,s.IndexOf(delimiter))
+let after (delimiter:string) (s:string) = s.Substring(s.IndexOf(delimiter) + delimiter.Length)
+let fixUpLoggers() = 
+    let loggers = Fake.MSBuildHelper.MSBuildLoggers
+    let badLogger = loggers |> Seq.tryFind(fun bl -> bl.StartsWith("Fake.MsBuildLogger+ErrorLogger,") )
+    match badLogger with 
+        |Some bl ->
+            let name = bl |> before ","
+            let path = typeof<Fake.FSIHelper.FsiArgs>.Assembly.CodeBase |> after "file:///" |> Path.GetFullPath
+            Fake.MSBuildHelper.MSBuildLoggers <- 
+                Fake.MSBuildHelper.MSBuildLoggers 
+                |> List.except[bl]
+                |> List.append [name + "," + path]
+            ()
+        | _ -> ()
+
+sprintf "MSBuildLoggers:%A" Fake.MSBuildHelper.MSBuildLoggers |> trace
+fixUpLoggers()
+sprintf "MSBuildLoggers:%A" Fake.MSBuildHelper.MSBuildLoggers |> trace
+
+
+
+
+
+
+
+Target "Clean" (fun _ -> 
+    CleanDirs [ deployBaseDir ]
+)
+
+Target "BuildApp" (fun _ -> 
+    trace "BuildApp start"    
+    let prDir = __SOURCE_DIRECTORY__ + "/PostUserActivity/PostUserActivity.csproj"    
+    !!prDir
+    //|> MSBuildRelease deployDir "Build"    
+    |> MSBuildDebug deployDir "Build"
+    |> Log "AppBuild-Output: "
+    trace "BuildApp stop"
+)
+
+let WixProductUpgradeGuid = Guid.Parse("861F6813-B8D9-406D-8E80-65C62D03E41B")
+
+Target "BuildWiXSetup" (fun _ ->
+    // This defines, which files should be collected when running bulkComponentCreation
+    let fileFilter = fun (file : FileInfo) -> 
+        if file.Extension = ".dll" || file.Extension = ".exe" || file.Extension = ".config" then 
+            true 
+        else 
+            false
+        
+    // Collect Files which should be shipped. Pass directory with your deployment output for deployDir
+    // along with the targeted architecture.
+    
+    let components = bulkComponentCreation fileFilter (DirectoryInfo deployDir) Architecture.X86
+             
+    // Collect component references for usage in features
+    let componentRefs = components |> Seq.map(fun comp -> comp.ToComponentRef())
+
+    let completeFeature = generateFeatureElement (fun f -> 
+                                                    {f with  
+                                                        Id = "Complete"
+                                                        Title = "Complete Feature"
+                                                        Level = 1 
+                                                        Description = "Installs all features"
+                                                        Components = componentRefs
+                                                        Display = Expand 
+                                                    })
+
+    // Generates a predefined WiX template with placeholders which will be replaced in "FillInWiXScript"
+    generateWiXScript "SetupTemplate.wxs"
+
+    let WiXUIMondo = generateUIRef (fun f ->
+                                        {f with
+                                            Id = "WixUI_Mondo"
+                                        })
+
+    let WiXUIError = generateUIRef (fun f ->
+                                        {f with
+                                            Id = "WixUI_ErrorProgressText"
+                                        })
+
+    let MajorUpgrade = generateMajorUpgradeVersion(
+                            fun f ->
+                                {f with 
+                                    Schedule = MajorUpgradeSchedule.AfterInstallExecute
+                                    DowngradeErrorMessage = "A later version is already installed, exiting."
+                                })
+
+    FillInWiXTemplate "" (fun f ->
+                            {f with
+                                // Guid which should be generated on every build
+                                ProductCode = Guid.NewGuid()
+                                ProductName = "Test Setup"
+                                Description = "Description of Test Setup"
+                                ProductLanguage = 1033
+                                ProductVersion = "1.0.0"
+                                ProductPublisher = "YouOrYourCompany"
+                                // Set fixed upgrade guid, this should never change for this project!
+                                UpgradeGuid = WixProductUpgradeGuid                                
+                                MajorUpgrade = [MajorUpgrade]
+                                UIRefs = [WiXUIMondo; WiXUIError]
+                                ProgramFilesFolder = ProgramFiles32
+                                Components = components
+                                BuildNumber = "Build number"
+                                Features = [completeFeature]                                
+                            })
+    let WiXPath = "c:\\Program Files (x86)\\WiX Toolset v3.10\\bin"
+
+    // run the WiX tools
+    WiX (fun p -> {p with ToolDirectory = WiXPath}) 
+        setupFileName
+        @".\SetupTemplate.wxs"
+)
+
+
+
+"Clean" 
+    ==> "BuildApp"        
+    //==> "BuildWiXSetup"
+    ==> "Default"
+// start build
+RunTargetOrDefault "Default"
+>>>>>>> d7217280239e330c2371e9cfa5da38d9aa76cf41

@@ -1,0 +1,4 @@
+FRAMEWORK: NET40-FULL, NET20, NET452, NET35
+NUGET
+  remote: https://www.nuget.org/api/v2
+    FAKE (4.45.3) - framework: net20, net35, net40-full, net452
