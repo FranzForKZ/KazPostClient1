@@ -1,0 +1,137 @@
+<<<<<<< HEAD
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+
+namespace PostUserActivity.Contracts
+{
+    /// <summary>
+    /// Перечень проблем (problemCodeList):
+    /// </summary>
+    public enum AnalyzeImageResultType
+    {
+
+        FaceNotFound = 0,
+        FaceMarred = 1,
+        FaceBlurred = 2,
+        FaceRotated =3,
+        СlosedEye = 4,
+        PhotoFaceOrLivingPerson = 5,
+        PhotoFace = 6,
+        MoreThanOnePerson = 7,
+        NotFoundSuitableFrame = 9,
+        FaceFoundProcessingInProgress = 10,
+        //0 - лицо не найдено;
+        //1 - лицо засвечено или низкая контрастность;
+        //2 - лицо размыто;
+        //3 - лицо сильно повернуто по одной из оси;
+        //4 - закрыты оба либо один глаз;
+        //5 - идет процесс определения является ли перед камерой фото с лицом или живой человек;
+        //6 - перед камерой фото лица;
+        //7 - в кадре более одного лица;
+        //9 - достигнут предел длительности анализа видео - не найден подходящий кадр.
+
+        ScannerError = 20,
+    }
+
+    public static class AnalyzeImageResultDescriptions
+    {
+        /// <summary>
+        /// переводим коды ошибок понятные человеческие слова
+        /// </summary>
+        /// <param name="errors"></param>
+        /// <returns></returns>
+        public static List<string> ErrorsDescription(List<AnalyzeImageResultType> errors)
+        {            
+            return errors.Select(p => ErrorsDict[(int) p]).ToList();            
+        }
+
+        private static Dictionary<int,string> ErrorsDict = new Dictionary<int, string>()
+        {
+            { 0, "Лицо не найдено" },
+            { 1, "Лицо засвечено или низкая контрастность" },
+            { 2, "Лицо размыто" },
+            { 3, "Лицо сильно повернуто по одной из осей" },
+            { 4, "Закрыт хотя бы один глаз" },
+            { 6, "Перед камерой фотография. Не удалось детектировать мимику клиента." },            
+            { 7, "В кадре более одного лица" },            
+            { 9, "Достигнут предел длительности анализа видео. Подходящий кадр не найден. " },
+            { 10, "Лицо обнаружено, идет обработка." },
+
+            //{ 20, "Не удалось отсканировать документ, проверьте подключение к сканеру. В случае повторения ошибки обратитесь в службу технической поддержки." },
+            { 20, "Не удалось отсканировать документ." },
+        };
+    }
+
+}
+=======
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+
+namespace PostUserActivity.Contracts
+{
+    /// <summary>
+    /// Перечень проблем (problemCodeList):
+    /// </summary>
+    public enum AnalyzeImageResultType
+    {
+
+        FaceNotFound = 0,
+        FaceMarred = 1,
+        FaceBlurred = 2,
+        FaceRotated =3,
+        СlosedEye = 4,
+        PhotoFaceOrLivingPerson = 5,
+        PhotoFace = 6,
+        MoreThanOnePerson = 7,
+        NotFoundSuitableFrame = 9,
+        FaceFoundProcessingInProgress = 10,
+        //0 - лицо не найдено;
+        //1 - лицо засвечено или низкая контрастность;
+        //2 - лицо размыто;
+        //3 - лицо сильно повернуто по одной из оси;
+        //4 - закрыты оба либо один глаз;
+        //5 - идет процесс определения является ли перед камерой фото с лицом или живой человек;
+        //6 - перед камерой фото лица;
+        //7 - в кадре более одного лица;
+        //9 - достигнут предел длительности анализа видео - не найден подходящий кадр.
+
+        ScannerError = 20,
+    }
+
+    public static class AnalyzeImageResultDescriptions
+    {
+        /// <summary>
+        /// переводим коды ошибок понятные человеческие слова
+        /// </summary>
+        /// <param name="errors"></param>
+        /// <returns></returns>
+        public static List<string> ErrorsDescription(List<AnalyzeImageResultType> errors)
+        {            
+            return errors.Select(p => ErrorsDict[(int) p]).ToList();            
+        }
+        
+        private static Dictionary<int,string> ErrorsDict = new Dictionary<int, string>()
+        {
+            { 0, "Лицо не найдено" },
+            { 1, "Лицо засвечено или низкая контрастность" },
+            { 2, "Лицо размыто" },
+            { 3, "Лицо сильно повернуто по одной из осей" },
+            { 4, "Закрыт хотя бы один глаз" },
+            { 6, "Перед камерой фотография. Не удалось детектировать мимику клиента." },            
+            { 7, "В кадре более одного лица" },            
+            { 9, "Достигнут предел длительности анализа видео. Подходящий кадр не найден. " },
+            { 10, "Лицо обнаружено, идет обработка." },
+
+            //{ 20, "Не удалось отсканировать документ, проверьте подключение к сканеру. В случае повторения ошибки обратитесь в службу технической поддержки." },
+            { 20, "Не удалось отсканировать документ." },
+        };
+    }
+
+}
+>>>>>>> 9816de846012f5ddd8b469b6cb53ba5b553510db

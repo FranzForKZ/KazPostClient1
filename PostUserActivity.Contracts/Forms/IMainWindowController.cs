@@ -1,0 +1,104 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using PostUserActivity.Contracts.Config;
+using PostUserActivity.Contracts.HWContracts;
+using PostUserActivity.Contracts.Network;
+
+namespace PostUserActivity.Contracts.Forms
+{
+    public interface IMainWindowController: IDisposable
+    {        
+        IDeviceConfiguration GetConfiguration();
+
+        //Image[] GetPictures(DeviceType device);
+
+        string GetUserName();
+        string GetScannerName();
+        string GetWebCamName();
+
+        void TakeScan();
+        void TakePhoto();
+
+        //event EventHandler ScanComleted;
+        //event EventHandler CamComleted;
+
+        #region HW events
+        
+        event EventHandler<ImageChangedEventArgs> ScannerImageChanged;
+        //event EventHandler<HWCompletedEventArgsEventArgs> ScannerCompleted;
+        //event EventHandler<HWErrorEventArgs> ScannerError;
+
+        event EventHandler<ImageChangedEventArgs> WebCamImageChanged;
+        //event EventHandler<HWCompletedEventArgsEventArgs> WebCamCompleted;
+        //event EventHandler<HWErrorEventArgs> WebCamError;
+
+        #endregion
+
+        event EventHandler<AnalyzeCompletedEventArgs> ScannerImageAnalyzeCompleted;
+        event EventHandler<AnalyzeCompletedEventArgs> WebCamImageAnalyzeCompleted;
+
+        event EventHandler<DoTakeRetryEvent> DoTakePhotoEvent;
+        event EventHandler<DoTakeRetryEvent> DoTakeScanEvent;
+
+        event EventHandler<AnalyzeCompletedEventArgs> WebCamProcessErrors;
+        event EventHandler<AnalyzeCompletedEventArgs> ScanProcessErrors;
+
+        int GetScannerDpi();
+        int GetScanAttempts();
+        int GetCamAttempts();
+        void SetCamAttempts(int Attempts);
+        void SetScanAttempts(int Attempts);
+        bool CanCreatePacket();
+        string ArchiveToBase64(string Path);
+        bool CanScan();
+        bool CanCam();
+
+        List<ArmDataPackage> CreatePackets();
+        LogPackage CreateLogPacket(string LogName, string Path, DateTime TimeStamp);
+        bool AllowReScan {get;}
+
+        DeviceStateBase GetScannerState();
+        DeviceStateBase GetWebCamState();
+        void ChangeWebCamState();
+        void ChangeScannerState();
+        void ChangeWebCamState(DeviceStateBase state);
+        void ChangeScannerState(DeviceStateBase state);
+
+        void StartWebCamPreview();
+        void StopWebCamPreview();
+
+        int MaxReryCount { get; }
+
+        long GetWfprocessid();
+
+        //void RetryReset();
+        void ChangeDefaultScanner();
+        void ChangeDefaultWebCam();
+
+        bool IsWebResultNull();
+
+        bool IsScannerAvailible();
+
+        bool IsWebCamAvailible();
+
+        void loadImageProcessor();
+
+        IntPtr WindowHandle { get; set; }
+    }
+
+    
+
+    public class DoTakeRetryEvent : EventArgs
+    {
+        public DoTakeRetryEvent(int retry)
+        {
+            this.RetryCount = retry;
+        }
+
+        public int RetryCount { get; private set; }
+    }
+}

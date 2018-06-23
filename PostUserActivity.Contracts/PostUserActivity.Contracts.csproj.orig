@@ -1,0 +1,197 @@
+<<<<<<< HEAD
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{653EC65E-FD3E-4425-901D-F9BEAE78132F}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>PostUserActivity.Contracts</RootNamespace>
+    <AssemblyName>PostUserActivity.Contracts</AssemblyName>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="CommandLine, Version=1.9.71.2, Culture=neutral, PublicKeyToken=de6f01bd326f8c32, processorArchitecture=MSIL">
+      <HintPath>..\packages\CommandLineParser.1.9.71\lib\net35\CommandLine.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.9.0.1\lib\net35\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+    <Reference Include="YamlDotNet, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\YamlDotNet.4.0.0\lib\net35\YamlDotNet.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AnalyzeImageResultType.cs" />
+    <Compile Include="AnalyzeImgArgs.cs" />
+    <Compile Include="Config\ConfigurationSchema.cs" />
+    <Compile Include="Forms\DeviceStateBase.cs" />
+    <Compile Include="Forms\FormWorkResult.cs" />
+    <Compile Include="Forms\GetPictureDialogFactory.cs" />
+    <Compile Include="Forms\GetScanerImagePictureDialog.cs" />
+    <Compile Include="Forms\GetWebCamImagePictureDialog.cs" />
+    <Compile Include="Forms\IMainWindowController.cs" />
+    <Compile Include="Forms\ProcessStateType.cs" />
+    <Compile Include="Forms\ScannerSettingsDialog.cs" />
+    <Compile Include="Forms\FormPropertiesBase.cs" />
+    <Compile Include="Forms\SettingsDialogFactory.cs" />
+    <Compile Include="Forms\WebCamSettingsDialog.cs" />
+    <Compile Include="HWContracts\DeviceType.cs" />
+    <Compile Include="HWContracts\ImageChangedEventArgs.cs" />
+    <Compile Include="HWContracts\HWCompletedEventArgsEventArgs.cs" />
+    <Compile Include="HWContracts\HWDeviceDesciption.cs" />
+    <Compile Include="HWContracts\HWErrorEventArgs.cs" />
+    <Compile Include="Config\IDeviceConfiguration.cs" />
+    <Compile Include="HWContracts\IHWDeviceWork.cs" />
+    <Compile Include="HWContracts\IHWSearcher.cs" />
+    <Compile Include="Forms\ISettingsDialog.cs" />
+    <Compile Include="IImageAnalyzer.cs" />
+    <Compile Include="Network\ArmSettingsParams.cs" />
+    <Compile Include="Network\CustomDateTimeConverter.cs" />
+    <Compile Include="Network\DataPackageType.cs" />
+    <Compile Include="Network\RequestResultType.cs" />
+    <Compile Include="Network\ArmDataPackage.cs" />
+    <Compile Include="Network\TResponseResult.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+=======
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{653EC65E-FD3E-4425-901D-F9BEAE78132F}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>PostUserActivity.Contracts</RootNamespace>
+    <AssemblyName>PostUserActivity.Contracts</AssemblyName>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="CommandLine, Version=1.9.71.2, Culture=neutral, PublicKeyToken=de6f01bd326f8c32, processorArchitecture=MSIL">
+      <HintPath>..\packages\CommandLineParser.1.9.71\lib\net35\CommandLine.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.9.0.1\lib\net35\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+    <Reference Include="YamlDotNet, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\YamlDotNet.4.0.0\lib\net35\YamlDotNet.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AnalyzeImageResultType.cs" />
+    <Compile Include="AnalyzeImgArgs.cs" />
+    <Compile Include="Config\ConfigurationSchema.cs" />
+    <Compile Include="Forms\DeviceStateBase.cs" />
+    <Compile Include="Forms\FormWorkResult.cs" />
+    <Compile Include="Forms\GetPictureDialogFactory.cs" />
+    <Compile Include="Forms\GetScanerImagePictureDialog.cs" />
+    <Compile Include="Forms\GetWebCamImagePictureDialog.cs" />
+    <Compile Include="Forms\IMainWindowController.cs" />
+    <Compile Include="Forms\ProcessStateType.cs" />
+    <Compile Include="Forms\ScannerSettingsDialog.cs" />
+    <Compile Include="Forms\FormPropertiesBase.cs" />
+    <Compile Include="Forms\SettingsDialogFactory.cs" />
+    <Compile Include="Forms\WebCamSettingsDialog.cs" />
+    <Compile Include="HWContracts\DeviceType.cs" />
+    <Compile Include="HWContracts\ImageChangedEventArgs.cs" />
+    <Compile Include="HWContracts\HWCompletedEventArgsEventArgs.cs" />
+    <Compile Include="HWContracts\HWDeviceDesciption.cs" />
+    <Compile Include="HWContracts\HWErrorEventArgs.cs" />
+    <Compile Include="Config\IDeviceConfiguration.cs" />
+    <Compile Include="HWContracts\IHWDeviceWork.cs" />
+    <Compile Include="HWContracts\IHWSearcher.cs" />
+    <Compile Include="Forms\ISettingsDialog.cs" />
+    <Compile Include="IImageAnalyzer.cs" />
+    <Compile Include="Network\ArmSettingsParams.cs" />
+    <Compile Include="Network\CustomDateTimeConverter.cs" />
+    <Compile Include="Network\DataPackageType.cs" />
+    <Compile Include="Network\INetSenderThread.cs" />
+    <Compile Include="Network\RequestResultType.cs" />
+    <Compile Include="Network\ArmDataPackage.cs" />
+    <Compile Include="Network\TResponseResult.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+>>>>>>> 5df5deb32ee32f69a301c2880374657cd25818b6
+</Project>

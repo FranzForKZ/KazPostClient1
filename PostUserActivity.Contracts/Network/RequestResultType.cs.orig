@@ -1,0 +1,43 @@
+<<<<<<< HEAD
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace PostUserActivity.Contracts.Network
+{
+    public enum RequestResultType
+    {
+        UnableToConnect = 0,
+        Successful = 200,
+        BadRequest = 400,
+        UnAuthrized = 401,
+
+        ServerUnavailable = 503,
+        ViolationLicenses = 500,
+        ViolationNumberLicenses = 7383,
+        AppNotRegistered = 7384
+    }
+}
+=======
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace PostUserActivity.Contracts.Network
+{
+    public enum RequestResultType
+    {        
+        Successful = 200,
+        BadRequest = 400,
+        UnAuthrized = 401,
+
+        ServerUnavailable = 503,
+        ViolationLicenses = 500,
+        
+        ViolationNumberLicenses = 7383,
+        AppNotRegistered = 7384
+    }
+}
+>>>>>>> 5df5deb32ee32f69a301c2880374657cd25818b6

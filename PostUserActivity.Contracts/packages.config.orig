@@ -1,0 +1,13 @@
+<<<<<<< HEAD
+﻿<?xml version="1.0" encoding="utf-8"?>
+<packages>
+  <package id="Newtonsoft.Json" version="9.0.1" targetFramework="net35" />
+  <package id="YamlDotNet" version="4.0.0" targetFramework="net35" />
+=======
+﻿<?xml version="1.0" encoding="utf-8"?>
+<packages>
+  <package id="CommandLineParser" version="1.9.71" targetFramework="net35" />
+  <package id="Newtonsoft.Json" version="9.0.1" targetFramework="net35" />
+  <package id="YamlDotNet" version="4.0.0" targetFramework="net35" />
+>>>>>>> 7ecaa4da3f257379dda0edb6affb29158c6253b0
+</packages>

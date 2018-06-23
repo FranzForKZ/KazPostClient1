@@ -1,0 +1,12 @@
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.Contracts\bin\Debug\PostUserActivity.Contracts.dll
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.Contracts\bin\Debug\PostUserActivity.Contracts.pdb
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.Contracts\bin\Debug\CommandLine.dll
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.Contracts\bin\Debug\Newtonsoft.Json.dll
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.Contracts\bin\Debug\YamlDotNet.dll
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.Contracts\bin\Debug\CommandLine.xml
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.Contracts\bin\Debug\Newtonsoft.Json.xml
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.Contracts\bin\Debug\YamlDotNet.pdb
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.Contracts\bin\Debug\YamlDotNet.xml
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.Contracts\obj\Debug\PostUserActivity.Contracts.csprojResolveAssemblyReference.cache
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.Contracts\obj\Debug\PostUserActivity.Contracts.dll
+C:\Users\abelov\Source\KazPostArm\PostUserActivity.Contracts\obj\Debug\PostUserActivity.Contracts.pdb
