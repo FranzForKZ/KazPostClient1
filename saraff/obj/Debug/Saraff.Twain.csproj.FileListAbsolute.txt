@@ -1,0 +1,9 @@
+C:\Users\abelov\Downloads\sarafftwain-ed01d37c09b937bae4e8bb24766b6017553a394a\bin\Debug\COPYING.LESSER.txt
+C:\Users\abelov\Downloads\sarafftwain-ed01d37c09b937bae4e8bb24766b6017553a394a\bin\Debug\Saraff.Twain.dll
+C:\Users\abelov\Downloads\sarafftwain-ed01d37c09b937bae4e8bb24766b6017553a394a\bin\Debug\Saraff.Twain.pdb
+C:\Users\abelov\Downloads\sarafftwain-ed01d37c09b937bae4e8bb24766b6017553a394a\obj\Debug\Saraff.Twain.csprojResolveAssemblyReference.cache
+C:\Users\abelov\Downloads\sarafftwain-ed01d37c09b937bae4e8bb24766b6017553a394a\obj\Debug\Saraff.Twain.Properties.Resources.resources
+C:\Users\abelov\Downloads\sarafftwain-ed01d37c09b937bae4e8bb24766b6017553a394a\obj\Debug\Saraff.Twain.Twain32.resources
+C:\Users\abelov\Downloads\sarafftwain-ed01d37c09b937bae4e8bb24766b6017553a394a\obj\Debug\Saraff.Twain.csproj.GenerateResource.Cache
+C:\Users\abelov\Downloads\sarafftwain-ed01d37c09b937bae4e8bb24766b6017553a394a\obj\Debug\Saraff.Twain.dll
+C:\Users\abelov\Downloads\sarafftwain-ed01d37c09b937bae4e8bb24766b6017553a394a\obj\Debug\Saraff.Twain.pdb
