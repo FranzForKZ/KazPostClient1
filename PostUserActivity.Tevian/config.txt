@@ -1,0 +1,38 @@
+logLevel 3
+classifiers classifiers.ini
+filterAngles on
+filterBlur on
+filterBrightness on
+filterEyes on
+filterLivenessBlinks on
+filterLivenessFrame on
+filterLivenessAngles off
+filterLivenessLips on
+imageBlurThreshold 0.2
+imageBrightnessThreshold 0.2 0.85
+imageEyesThreshold 0.2
+imagePitchThreshold 15
+imageYawThreshold 15
+videoBlurThreshold 0.3
+videoBrightnessThreshold 0.2 0.8
+videoEyesThreshold 0.2
+videoEyesQuantile 0.05
+videoLivenessThreshold 0.0
+videoLivenessAnglesThreshold 5 25
+videoPitchThreshold 15
+videoRollThreshold 15
+videoYawThreshold 15
+imageDetectionThreshold 0.8
+imageMaxEyesDist 1
+imageMinEyesDist 0.025
+imageMinEyesDistPixels 32
+videoDetectionThreshold 0.9
+videoMaxEyesDist 1
+videoMinEyesDist 0.07
+videoRoi 0 0 1 1
+livenessFix on
+videoLivenessAnglesLocalThreshold 0.3
+videoLivenessLipsLocalThreshold 0.2
+videoLivenessBlinksLocalThreshold 0.3
+videoLivenessFrameLocalThreshold 0.3
+videoFaceRatioThreshold 0.5
